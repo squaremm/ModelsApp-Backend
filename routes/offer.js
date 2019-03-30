@@ -191,7 +191,7 @@ module.exports = function(app) {
     });
   });
 
-  app.post('/api/place/offer/:id/post', middleware.isAuthorized, function (req, res) {
+  app.post('/api/place/offer/:id/post', middleware.isClient, function (req, res) {
 
     Offer.findOne({_id: parseInt(req.params.id)}, function (err, offer) {
       if (!offer) {
