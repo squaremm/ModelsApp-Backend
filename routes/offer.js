@@ -62,7 +62,7 @@ module.exports = function(app) {
   //1. What is source of credis attached to offer
   //2. What is the impact of level user and offer level in calculate credits
   //3. If user is require get -> authorize request and get user data
-  app.get('api/offer/:id/actions', function(req, res){
+  app.get('/api/offer/:id/actions', function(req, res) {
     var id = parseInt(req.params.id);
     if(id){
       Offer.findOne({_id: id}).then(x => {
