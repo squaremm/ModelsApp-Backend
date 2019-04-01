@@ -71,8 +71,9 @@ module.exports = function(app) {
       .catch(err => {
         res.status(500).json({message: err});
       });
+    }else{
+      res.status(500).json({message: "Invalid param"});
     }
-    res.status(500).json({message: "Invalid param"});
   });
 
   // Create the offer. Then wait for the post, admin's check of the post, and then close it
