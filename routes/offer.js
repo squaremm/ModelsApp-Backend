@@ -74,13 +74,15 @@ module.exports = function(app) {
       'gPost': 'Google post'
     }
       Offer.findOne({_id: id}).then(x => {
-        res.status(200).json(x.credits.map(x=> {
+        var credits = x.credits;
+        var offerCreditsArray = Array.from(Object.keys(credits));
+        res.status(200).json(offerCreditsArray.map(x=> {
           return {
             displayName: availableTypes[x],
             type: x,
-            credis: x[1]
+            credis: credits[x]
           }
-        })).toArray();
+        }));
       })
       .catch(err => {
         res.status(500).json({message: err});
