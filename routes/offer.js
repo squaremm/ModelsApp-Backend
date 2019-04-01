@@ -64,6 +64,7 @@ module.exports = function(app) {
   //3. If user is require get -> authorize request and get user data
   app.get('/api/offer/:id/actions', function(req, res) {
     var id = parseInt(req.params.id);
+    res.status(200).json(id);
     if(id){
       Offer.findOne({_id: id}).then(x => {
         res.status(200).json(x.credits);
