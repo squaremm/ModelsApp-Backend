@@ -46,7 +46,7 @@ module.exports = function(passport) {
             // If it is the first time for the user - create new user in DB
             var newUser = {};
             newUser.photo = profile._json.data.profile_picture;
-            newUser.accepted = true;
+            newUser.accepted = false;
             newUser.newUser = true;
             newUser.credits = 200;
             newUser.instagram = {};

@@ -12,26 +12,31 @@ db.getInstance(function (p_db) {
 
 module.exports = function(app) {
 
-  app.put(['/api/admin/acceptModel/:id', '/api/admin/rejectModel/:id'], middleware.isAdmin, function (req, res) {
-
-    var accept = req.url !== ('/api/admin/rejectModel/' + req.params.id);
+  app.put(['/api/admin/model/:id/accept'], function (req, res) {
     var id = parseInt(req.params.id);
-    var level = parseInt(req.body.level) || 0;
+    var level = parseInt(req.body.level) || 4;
 
-    User.findOneAndUpdate({ _id: id }, { $set: { accepted: accept, level: level }}, function (err, updated) {
+    User.findOneAndUpdate({ _id: id }, { $set: { accepted: true, level: level }}, function (err, updated) {
       if(err) res.json({ message: "error" });
       if(updated.value !== undefined && updated.value !== null){
-        if(accept){
           res.json({ message: "The model has been accepted" });
-        } else{
-          res.json({ message: "The model has been rejected" });
-        }
       } else{
         res.json({ message: "No such user" });
       }
     });
   });
+  app.put(['/api/admin/model/:id/reject'], function (req, res) {
+    var id = parseInt(req.params.id);
 
+    User.findOneAndUpdate({ _id: id }, { $set: { accepted: false }}, function (err, updated) {
+      if(err) res.json({ message: "error" });
+      if(updated.value !== undefined && updated.value !== null){
+          res.json({ message: "The model has been rejected" });
+      } else{
+        res.json({ message: "No such user" });
+      }
+    });
+  });
 
   // Constant payments or penalties for models which
   // level differs from the offer's level
