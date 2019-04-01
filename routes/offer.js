@@ -65,8 +65,11 @@ module.exports = function(app) {
   app.get('api/offer/:id/actions'), function(req, res){
     var id = parseInt(req.params.id);
     if(id){
-      Offer.findOne({_id: id}, function(offer){
-        res.status(200).json(offer.map(x=>x.credits));
+      Offer.findOne({_id: id}).then(x => {
+        res.status(200).json(x.credits);
+      })
+      .catch(err => {
+        res.status(500).json({message: err});
       });
     }
     res.status(500).json({message: "Invalid param"});
