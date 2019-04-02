@@ -36,7 +36,7 @@ function intervalFunc(db) {
                 //find all bookings that are not closed yet
                 Booking.find({closed: false}, (bookingError, bookings) => {
                         //check if any booking should be closed 
-                        bookings.array.forEach(booking => {
+                        bookings.forEach(booking => {
 
                             var date = moment(booking.date + ' ' + booking.endTime, 'DD-MM-YYYY HH.mm');
                             var tommorow = moment(date.add('1', 'days').format('DD-MM-YYYY'), 'DD-MM-YYYY');
