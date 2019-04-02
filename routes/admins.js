@@ -47,6 +47,7 @@ module.exports = function(app) {
       if(err) res.json({ message: "error" });
       if(updated.value !== undefined && updated.value !== null){
         console.log('devices' +  updated.devices);
+        console.log(updated.value);
         // console.log('device length ' + (updated.devices.length - 1));
  
        // var deviceId = updated.devices[updated.devices.length - 1];
