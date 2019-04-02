@@ -23,6 +23,7 @@ async function bookingClosedNotification(deviceId) {
 exports.checkBookingExpired = function(db){
     var User, Place, Offer, OfferPost, Booking;
     db.getInstance(function (p_db) {
+        console.log('p_db:' + p_db);
       User = p_db.collection('users');
       Place = p_db.collection('places');
       Offer = p_db.collection('offers');
