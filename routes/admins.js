@@ -13,7 +13,7 @@ async function userAcceptNotification(devices) {
     note.badge = 1;
     note.alert = `\uD83D\uDCE7 \u2709 Your account has beed accepted!`;
     note.payload = { message: `Now you have access to all resources`, pushType: 'userAccept' };
-  devices.forEach(device => {
+  devices.forEach(async (device) => {
      await apnProvider.send(note, device);
   });
   
@@ -25,7 +25,7 @@ async function userRejectNotification(devices) {
   note.alert = `\uD83D\uDCE7 \u2709 Your account has beed rejected!`;
   note.payload = { message: `You lost access to account`, pushType: 'userRejected' };
 
-  devices.forEach(device => {
+  devices.forEach(async (device) => {
      await apnProvider.send(note, device);
   });
 }

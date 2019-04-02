@@ -13,7 +13,7 @@ async function bookingClosedNotification(devices) {
     note.alert = `\uD83D\uDCE7 \u2709 Booking closed!`;
     note.payload = { message: `Your booking has been closed you lost change to get points`, pushType: 'bookingClosed' };
   
-    devices.forEach(device => {
+    devices.forEach(async (device) => {
         await apnProvider.send(note, device);
      });
   };
