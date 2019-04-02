@@ -21,19 +21,10 @@ async function bookingClosedNotification(deviceId) {
 
 
 exports.checkBookingExpired = function(db){
-    // var User, Place, Offer, OfferPost, Booking;
-    // db.getInstance(function (p_db) {
-    //   User = p_db.collection('users');
-    //   Booking = p_db.collection('bookings'); 
-    // });
-
     setInterval(() => {
-        test(db);
+        intervalFunc(db);
     }, 5000);
   }
-function test(db){
-    console.log(db);
-}
 function intervalFunc(db) {
     console.log('start interval function');
     db.getInstance(function (p_db) {
