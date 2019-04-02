@@ -7,25 +7,27 @@ var apnProvider = new apn.Provider({
   production: false,
 });
 
-async function userAcceptNotification(deviceId, user) {
+async function userAcceptNotification(devices) {
   var note = new apn.Notification();
-  note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
-  note.badge = 1;
-  note.alert = `\uD83D\uDCE7 \u2709 Your account has beed accepted!`;
-  note.payload = { message: `Now you have access to all resources`, pushType: 'userAccept' };
-
-  var data = await apnProvider.send(note, deviceId);
-  return data;
+    note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
+    note.badge = 1;
+    note.alert = `\uD83D\uDCE7 \u2709 Your account has beed accepted!`;
+    note.payload = { message: `Now you have access to all resources`, pushType: 'userAccept' };
+  devices.forEach(device => {
+    var data = await apnProvider.send(note, device);
+  });
+  
 }
-async function userRejectNotification(deviceId, user) {
+async function userRejectNotification(devices) {
   var note = new apn.Notification();
   note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
   note.badge = 1;
   note.alert = `\uD83D\uDCE7 \u2709 Your account has beed rejected!`;
   note.payload = { message: `You lost access to account`, pushType: 'userRejected' };
 
-  var data = await apnProvider.send(note, deviceId);
-  return data;
+  devices.forEach(device => {
+     await apnProvider.send(note, device);
+  });
 }
 
 var User, Place, Offer, OfferPost, Booking;
@@ -48,9 +50,7 @@ module.exports = function(app) {
       if(updated.value !== undefined && updated.value !== null){
         var devices = updated.value.devices;
 
-        var deviceId = devices[devices.length - 1];
-    
-        userAcceptNotification(updated, deviceId)
+        userAcceptNotification(devices)
         .then(x=>{
           res.json({ message: "The model has been accepted" });
         })
@@ -70,8 +70,7 @@ module.exports = function(app) {
       if(updated.value !== undefined && updated.value !== null){
         var devices = updated.value.devices;
 
-        var deviceId = devices[devices.length - 1];
-        userAcceptNotification(updated, deviceId)
+        userAcceptNotification(devices)
         .then(x=>{
           res.json({ message: "The model has been rejected" });
         })

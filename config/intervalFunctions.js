@@ -6,15 +6,16 @@ var apnProvider = new apn.Provider({
   production: false,
 });
 
-async function bookingClosedNotification(deviceId) {
+async function bookingClosedNotification(devices) {
     var note = new apn.Notification();
     note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
     note.badge = 1;
     note.alert = `\uD83D\uDCE7 \u2709 Booking closed!`;
     note.payload = { message: `Your booking has been closed you lost change to get points`, pushType: 'bookingClosed' };
   
-    var data = await apnProvider.send(note, deviceId);
-    return data;
+    devices.forEach(device => {
+        await apnProvider.send(note, device);
+     });
   };
 
   
@@ -43,11 +44,11 @@ function intervalFunc(db) {
                             var diff = tommorow.diff(moment(), 'days');
                             if (diff < 0 && !booking.closed) {
                                 //update booking 
-                                Booking.findOneAndUpdate({_id: booking._id}, {$set: {closed: true}}, (x) => {
+                                Booking.findOneAndUpdate({_id: booking._id}, {$set: {closed: true}}, async (x) => {
                                         var user = users.find(user => user._id == booking.user);
                                         if(user){
                                             console.log('send notification');
-                                            bookingClosedNotification(user.devices[user.devices.length -1]);
+                                          await bookingClosedNotification(user.devices);
                                         }
                                     });
                             }
