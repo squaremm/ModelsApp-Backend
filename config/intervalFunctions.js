@@ -28,6 +28,8 @@ async function bookingClosedNotification(deviceId) {
 
 
 exports.checkBookingExpired = function(){
+    console.log('user: '  + User); 
+    console.log('db: ' + db);
     User.find({ accepted: true , bookings: { $gt: 0 } },function(err, users){
         console.log(users);
         console.log(err);
