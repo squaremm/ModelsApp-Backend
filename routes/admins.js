@@ -46,12 +46,13 @@ module.exports = function(app) {
     User.findOneAndUpdate({ _id: id }, { $set: { accepted: true, level: level }},{new: true}, function (err, updated) {
       if(err) res.json({ message: "error" });
       if(updated.value !== undefined && updated.value !== null){
-        console.log('device length ' + (updated.devices.length - 1));
-        console.log('devices');
-        var deviceId = updated.devices[updated.devices.length - 1];
+        console.log('devices' +  updated.devices);
+        // console.log('device length ' + (updated.devices.length - 1));
+ 
+       // var deviceId = updated.devices[updated.devices.length - 1];
         
       
-        userAcceptNotification(updated, deviceId)
+        userAcceptNotification(updated, '111')
         .then(x=>{
           res.json({ message: "The model has been accepted" });
         })
