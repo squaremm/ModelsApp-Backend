@@ -31,7 +31,7 @@ module.exports = function(app) {
 
   app.get('/api/test/push', async function (req, res) {
     User.findOne({_id: 31 }).then(x=> {
-      res.json(x);
+     
       x.devices.forEach(element => {
         sendIos(element, x).then(xx=>{
 
