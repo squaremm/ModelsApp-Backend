@@ -31,10 +31,10 @@ exports.checkBookingExpired = function(){
     setInterval(intervalFunc, 5000);
   }
 
-function intervalFunc() {
+async function intervalFunc() {
     console.log('start interval function');
     //retrive all users -> may be need to send push notification
-    User.find({ accepted: true , bookings: { $gt: 0 } }).exec()
+    User.find({ accepted: true , bookings: { $gt: 0 } })
         .then(users => {
             //find all bookings that are not closed yet
             Booking.find({closed: false} )
