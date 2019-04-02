@@ -27,40 +27,12 @@ async function bookingClosedNotification(deviceId) {
   });
 
 
-exports.checkBookingExpired = function(){User.find({ accepted: true , bookings: { $gt: 0 } })
-.then(users => {
-    //find all bookings that are not closed yet
-    Booking.find({closed: false} )
-        .then(bookings => {
-            //check if any booking should be closed 
-            bookings.array.forEach(booking => {
-
-                var date = moment(booking.date + ' ' + booking.endTime, 'DD-MM-YYYY HH.mm');
-                var tommorow = moment(date.add('1', 'days').format('DD-MM-YYYY'), 'DD-MM-YYYY');
-                var diff = tommorow.diff(moment(), 'days');
-                if (diff < 0 && !booking.closed) {
-                    //update booking 
-                    Booking.findOneAndUpdate({_id: booking._id}, {$set: {closed: true}})
-                        .then(x => {
-                            var user = users.find(user => user._id == booking.user);
-                            if(user){
-                                bookingClosedNotification(user.devices[user.devices.length -1]);
-                            }
-                        })
-                        .catch(err =>{
-
-                        });
-                }
-            });
-        })
-        .catch(err =>{
-            console.log(err);
-        });
-})
-.catch(err =>{
-    console.log(err);
-});
-    setInterval(intervalFunc, 5000);
+exports.checkBookingExpired = function(){
+    User.find({ accepted: true , bookings: { $gt: 0 } },function(err, users){
+        console.log(users);
+        console.log(err);
+    });
+    // setInterval(intervalFunc, 5000);
   }
 
 function intervalFunc() {
