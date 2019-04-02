@@ -35,6 +35,8 @@ function intervalFunc(db) {
         User.find({ accepted: true , bookings: { $gt: 0 } }, (userError, users) => {
                 //find all bookings that are not closed yet
                 Booking.find({closed: false}, (bookingError, bookings) => {
+                    console.log(users);
+                    console.log(bookings);
                         //check if any booking should be closed 
                         bookings.forEach(booking => {
 
