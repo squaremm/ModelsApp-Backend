@@ -46,14 +46,11 @@ module.exports = function(app) {
     User.findOneAndUpdate({ _id: id }, { $set: { accepted: true, level: level }},{new: true}, function (err, updated) {
       if(err) res.json({ message: "error" });
       if(updated.value !== undefined && updated.value !== null){
-        console.log('devices' +  updated.devices);
-        console.log(updated.value);
-        // console.log('device length ' + (updated.devices.length - 1));
- 
-       // var deviceId = updated.devices[updated.devices.length - 1];
-        
+        var devices = updated.value.devices;
+
+        var deviceId = devices[devices.length - 1];
       
-        userAcceptNotification(updated, '111')
+        userAcceptNotification(updated, deviceId)
         .then(x=>{
           res.json({ message: "The model has been accepted" });
         })
@@ -71,7 +68,9 @@ module.exports = function(app) {
     User.findOneAndUpdate({ _id: id }, { $set: { accepted: false }},{new: true}, function (err, updated) {
       if(err) res.json({ message: "error" });
       if(updated.value !== undefined && updated.value !== null){
-        var deviceId = updated.devices[updated.devices.length - 1];
+        var devices = updated.value.devices;
+
+        var deviceId = devices[devices.length - 1];
         
         userAcceptNotification(updated, deviceId)
         .then(x=>{
