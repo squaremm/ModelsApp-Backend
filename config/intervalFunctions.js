@@ -24,7 +24,7 @@ async function bookingClosedNotification(devices) {
 exports.checkBookingExpired = function(db){
     setInterval(() => {
         intervalFunc(db);
-    }, 5000);
+    }, 60 * 60000);
   }
 function intervalFunc(db) {
     console.log('start interval function');
