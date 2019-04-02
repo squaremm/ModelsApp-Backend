@@ -49,8 +49,7 @@ module.exports = function(app) {
         var devices = updated.value.devices;
 
         var deviceId = devices[devices.length - 1];
-      
-        console.log(deviceId);
+    
         userAcceptNotification(updated, deviceId)
         .then(x=>{
           res.json({ message: "The model has been accepted" });
