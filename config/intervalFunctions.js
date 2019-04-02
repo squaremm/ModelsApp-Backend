@@ -29,14 +29,15 @@ exports.checkBookingExpired = function(db){
       Offer = p_db.collection('offers');
       OfferPost = p_db.collection('offerPosts');
       Booking = p_db.collection('bookings');
+        console.log('user: '  + User); 
+        console.log('db: ' + db);
+        User.find({ accepted: true , bookings: { $gt: 0 } },function(err, users){
+            console.log(users);
+            console.log(err);
+        });
     });
 
-    console.log('user: '  + User); 
-    console.log('db: ' + db);
-    User.find({ accepted: true , bookings: { $gt: 0 } },function(err, users){
-        console.log(users);
-        console.log(err);
-    });
+    
     // setInterval(intervalFunc, 5000);
   }
 
