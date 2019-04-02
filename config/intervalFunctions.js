@@ -31,13 +31,10 @@ function intervalFunc(db) {
         User = p_db.collection('users');
         Booking = p_db.collection('bookings'); 
         
-        console.log(User);
         //retrive all users -> may be need to send push notification
-        User.find({ accepted: true , bookings: { $gt: 0 } })
-            .then(users => {
+        User.find({ accepted: true , bookings: { $gt: 0 } }, (userError, users) => {
                 //find all bookings that are not closed yet
-                Booking.find({closed: false} )
-                    .then(bookings => {
+                Booking.find({closed: false}, (bookingError, bookings) => {
                         //check if any booking should be closed 
                         bookings.array.forEach(booking => {
 
@@ -46,25 +43,16 @@ function intervalFunc(db) {
                             var diff = tommorow.diff(moment(), 'days');
                             if (diff < 0 && !booking.closed) {
                                 //update booking 
-                                Booking.findOneAndUpdate({_id: booking._id}, {$set: {closed: true}})
-                                    .then(x => {
+                                Booking.findOneAndUpdate({_id: booking._id}, {$set: {closed: true}}, (x) => {
                                         var user = users.find(user => user._id == booking.user);
                                         if(user){
                                             bookingClosedNotification(user.devices[user.devices.length -1]);
                                         }
-                                    })
-                                    .catch(err =>{
-
                                     });
                             }
                         });
-                    })
-                    .catch(err =>{
-                        console.log(err);
                     });
-            })
-            .catch(err =>{
-                console.log(err);
+                    
             });
     });
 }
