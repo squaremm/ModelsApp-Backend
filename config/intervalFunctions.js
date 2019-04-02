@@ -32,9 +32,10 @@ function intervalFunc(db) {
         Booking = p_db.collection('bookings'); 
         
         //retrive all users -> may be need to send push notification
-        User.find({ accepted: true , bookings: { $gt: 0 } }, (userError, users) => {
+        User.find({ accepted: true , bookings: { $gt: 0 } }).toArray(async (userError, users) => {
                 //find all bookings that are not closed yet
                 Booking.find({closed: false}, (bookingError, bookings) => {
+                    console.log(userError);
                     console.log(users);
                     console.log(bookings);
                         //check if any booking should be closed 
