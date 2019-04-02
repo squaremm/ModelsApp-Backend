@@ -46,6 +46,7 @@ function intervalFunc(db) {
                                 Booking.findOneAndUpdate({_id: booking._id}, {$set: {closed: true}}, (x) => {
                                         var user = users.find(user => user._id == booking.user);
                                         if(user){
+                                            console.log('send notification');
                                             bookingClosedNotification(user.devices[user.devices.length -1]);
                                         }
                                     });
