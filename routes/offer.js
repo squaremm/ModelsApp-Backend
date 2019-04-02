@@ -80,7 +80,7 @@ module.exports = function(app) {
           return {
             displayName: availableTypes[x],
             type: x,
-            credis: credits[x]
+            credits: credits[x]
           }
         }));
       })
