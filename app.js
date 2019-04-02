@@ -36,7 +36,7 @@ require('./routes/statistics')(app);
 require('./routes')(app);
 var functions = require('./config/intervalFunctions');
 
-functions.checkBookingExpired();
+functions.checkBookingExpired(db);
 
 var PORT = process.env.PORT || 3000;
 

@@ -17,17 +17,19 @@ async function bookingClosedNotification(deviceId) {
     return data;
   };
 
-  var User, Place, Offer, OfferPost, Booking;
-  db.getInstance(function (p_db) {
-    User = p_db.collection('users');
-    Place = p_db.collection('places');
-    Offer = p_db.collection('offers');
-    OfferPost = p_db.collection('offerPosts');
-    Booking = p_db.collection('bookings');
-  });
+  
 
 
-exports.checkBookingExpired = function(){
+exports.checkBookingExpired = function(db){
+    var User, Place, Offer, OfferPost, Booking;
+    db.getInstance(function (p_db) {
+      User = p_db.collection('users');
+      Place = p_db.collection('places');
+      Offer = p_db.collection('offers');
+      OfferPost = p_db.collection('offerPosts');
+      Booking = p_db.collection('bookings');
+    });
+
     console.log('user: '  + User); 
     console.log('db: ' + db);
     User.find({ accepted: true , bookings: { $gt: 0 } },function(err, users){
