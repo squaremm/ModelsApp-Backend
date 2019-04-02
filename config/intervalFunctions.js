@@ -31,6 +31,7 @@ function intervalFunc(db) {
         User = p_db.collection('users');
         Booking = p_db.collection('bookings'); 
         
+        console.log(User);
         //retrive all users -> may be need to send push notification
         User.find({ accepted: true , bookings: { $gt: 0 } })
             .then(users => {
