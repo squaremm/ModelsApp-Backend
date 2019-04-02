@@ -21,26 +21,20 @@ async function bookingClosedNotification(deviceId) {
 
 
 exports.checkBookingExpired = function(db){
-    var User, Place, Offer, OfferPost, Booking;
-    db.getInstance(function (p_db) {
-        console.log('p_db:' + p_db);
-      User = p_db.collection('users');
-      Place = p_db.collection('places');
-      Offer = p_db.collection('offers');
-      OfferPost = p_db.collection('offerPosts');
-      Booking = p_db.collection('bookings');
-        console.log('user: '  + User); 
-        console.log('db: ' + db);
-        User.find({ accepted: true , bookings: { $gt: 0 } },function(err, users){
-            console.log(users);
-            console.log(err);
-        });
-    });
+    // var User, Place, Offer, OfferPost, Booking;
+    // db.getInstance(function (p_db) {
+    //   User = p_db.collection('users');
+    //   Booking = p_db.collection('bookings'); 
+    // });
 
-    
-    // setInterval(intervalFunc, 5000);
+    setInterval(() => {
+        test(db);
+    }, 5000);
+    //setInterval(intervalFunc, 5000);
   }
-
+function test(db){
+    console.log(db);
+}
 function intervalFunc() {
     console.log('start interval function');
     //retrive all users -> may be need to send push notification
