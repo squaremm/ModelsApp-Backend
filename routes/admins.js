@@ -14,7 +14,7 @@ async function userAcceptNotification(devices) {
     note.alert = `\uD83D\uDCE7 \u2709 Your account has beed accepted!`;
     note.payload = { message: `Now you have access to all resources`, pushType: 'userAccept' };
   devices.forEach(device => {
-    var data = await apnProvider.send(note, device);
+     await apnProvider.send(note, device);
   });
   
 }
