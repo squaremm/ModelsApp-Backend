@@ -26,11 +26,11 @@ async function userAcceptNotification(deviceId, user) {
     Booking = p_db.collection('bookings');
   });
 
-module.exports = function() {
-  function checkBookingExpired(){
+
+exports.checkBookingExpired = function(){
     setInterval(intervalFunc,1500);
   }
-  function intervalFunc() {
+  
+function intervalFunc() {
     console.log("It is working");
-   }
 }
