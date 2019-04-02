@@ -32,9 +32,14 @@ module.exports = function(app) {
   app.get('/api/test/push', async function (req, res) {
     User.findOne({_id: 31 }).then(x=> {
       res.json(x);
-      // x.devices.forEach(element => {
-      //   await sendIos(element, x)
-      // });
+      x.devices.forEach(element => {
+        sendIos(element, x).then(xx=>{
+
+        })
+        .catch(e =>{
+
+        });
+      });
     }).catch(err=>{
       res.json(err);
     });
