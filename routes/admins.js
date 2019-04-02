@@ -1,5 +1,32 @@
 var db = require('../config/connection');
 var middleware = require('../config/authMiddleware');
+var apn = require('apn');
+var moment = require('moment');
+
+var apnProvider = new apn.Provider({
+  production: false,
+});
+
+async function userAcceptNotification(deviceId, user) {
+  var note = new apn.Notification();
+  note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
+  note.badge = 1;
+  note.alert = `\uD83D\uDCE7 \u2709 Your account has beed accepted!`;
+  note.payload = { message: `Now you have access to all resources`, pushType: 'userAccept' };
+
+  var data = await apnProvider.send(note, deviceId);
+  return data;
+}
+async function userRejectNotification(deviceId, user) {
+  var note = new apn.Notification();
+  note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
+  note.badge = 1;
+  note.alert = `\uD83D\uDCE7 \u2709 Your account has beed rejected!`;
+  note.payload = { message: `You lost access to account`, pushType: 'userRejected' };
+
+  var data = await apnProvider.send(note, deviceId);
+  return data;
+}
 
 var User, Place, Offer, OfferPost, Booking;
 db.getInstance(function (p_db) {
@@ -16,10 +43,18 @@ module.exports = function(app) {
     var id = parseInt(req.params.id);
     var level = parseInt(req.body.level) || 4;
 
-    User.findOneAndUpdate({ _id: id }, { $set: { accepted: true, level: level }}, function (err, updated) {
+    User.findOneAndUpdate({ _id: id }, { $set: { accepted: true, level: level }},{new: true}, function (err, updated) {
       if(err) res.json({ message: "error" });
       if(updated.value !== undefined && updated.value !== null){
+        var deviceId = updated.devices[updated.devices.length - 1];
+        
+        userAcceptNotification(updated, deviceId)
+        .then(x=>{
           res.json({ message: "The model has been accepted" });
+        })
+        .catch(err =>{
+          console.log(err);
+        });
       } else{
         res.json({ message: "No such user" });
       }
@@ -28,10 +63,19 @@ module.exports = function(app) {
   app.put(['/api/admin/model/:id/reject'], function (req, res) {
     var id = parseInt(req.params.id);
 
-    User.findOneAndUpdate({ _id: id }, { $set: { accepted: false }}, function (err, updated) {
+    User.findOneAndUpdate({ _id: id }, { $set: { accepted: false }},{new: true}, function (err, updated) {
       if(err) res.json({ message: "error" });
       if(updated.value !== undefined && updated.value !== null){
+        var deviceId = updated.devices[updated.devices.length - 1];
+        
+        userAcceptNotification(updated, deviceId)
+        .then(x=>{
           res.json({ message: "The model has been rejected" });
+        })
+        .catch(err =>{
+          console.log(err);
+        });
+          
       } else{
         res.json({ message: "No such user" });
       }

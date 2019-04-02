@@ -34,6 +34,9 @@ require('./routes/booking')(app);
 require('./routes/place')(app);
 require('./routes/statistics')(app);
 require('./routes')(app);
+var functions = require('./config/intervalFunctions');
+
+functions.checkBookingExpired();
 
 var PORT = process.env.PORT || 3000;
 
@@ -41,7 +44,4 @@ app.listen(PORT, '0.0.0.0', function () {
   console.log('Everything is ill right on port %d!', PORT)
 });
 
-function intervalFunc() {
-  console.log("Hello!!!!");
-   }
-  setInterval(intervalFunc,1500);
+
