@@ -150,7 +150,7 @@ module.exports = function(app) {
     });
   });
 
-  app.put('api/admin/offerpost/:id/accept', async (req,res)=> {
+  app.put('/api/admin/offerpost/:id/accept', async (req,res)=> {
     var id = parseInt(req.params.id);
     //find post action in db
     OfferPost.findOne({ _id: id })
