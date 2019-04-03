@@ -28,6 +28,7 @@ async function userRejectNotification(devices) {
   devices.forEach(async (device) => {
      await apnProvider.send(note, device);
   });
+}
 async function actionAcceptNotification(devices) {
     var note = new apn.Notification();
     note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
