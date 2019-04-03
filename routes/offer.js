@@ -93,7 +93,7 @@ module.exports = function(app) {
                 credits: credits[x],
                 active: true
               }
-            })
+            }).toArray()
           });
           console.log(user.availableActions);
           User.replaceOne({_id : user.id, user}).then(()=>{
