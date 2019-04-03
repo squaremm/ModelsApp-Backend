@@ -98,13 +98,12 @@ module.exports = function(app) {
           console.log(availableAction);
           User.findOneAndUpdate({_id: user._id}, { $push : { availableActions: availableAction }}).then(()=>{
             res.status(200);
-
           })
           .catch(err=>{
             res.status(500).json(err);
           });
         }else{
-
+          res.status(200);
         } 
       })
       .catch(err => {
