@@ -69,11 +69,11 @@ module.exports = function(app) {
     var userId = parseInt(req.params.userId);
     console.log(userId);
     console.log(id);
-    User.findOne({_id: userId}).then(user =>{
+    User.findOne({_id: userId}).then(user => {
       Offer.findOne({_id: id}).then(offer => {
         var credits = offer.credits;
         var offerCreditsArray = Array.from(Object.keys(credits));
-        
+        console.log(user.availableActions);
         if(user.availableActions.filter(action =>  action.offerId == id) == 0){
           user.availableActions.push({
             offerId: id,
