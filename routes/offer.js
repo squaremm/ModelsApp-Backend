@@ -84,7 +84,7 @@ module.exports = function(app) {
             'yelpPost': 'Yelp review',
             'gPost': 'Google post'
           }
-          user.availableActions.push({
+          var availableAction = {
             offerId: id,
             actions: offerCreditsArray.map(x=> {
               return {
@@ -93,12 +93,13 @@ module.exports = function(app) {
                 credits: credits[x],
                 active: true
               }
-            }).toArray()
-          });
-          console.log(user.availableActions);
-          User.replaceOne({_id : user.id, user}).then(()=>{
-            req.status(200);
-          });
+            })
+          };
+          console.log(availableAction);
+          User.findOneAndUpdate({_id: user.id}, {$push : { availableActions: availableAction }}).then(()=>{
+            res.status(200);
+
+          })
         }else{
 
         } 
