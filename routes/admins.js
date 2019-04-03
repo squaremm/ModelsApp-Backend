@@ -158,9 +158,16 @@ module.exports = function(app) {
         if(!offerPost.accepted){
           User.findOneAndUpdate({ _id: offerPost.user }, { $inc: { credits: offerPost.credits } })
             .then(user => {
+              console.log(user.devices);
               actionAcceptNotification(user.devices)
                 .then(() => {
-                  res.status(200).json({message: 'credits added for a user'});
+                  OfferPost.findOneAndUpdate({_id: id },{ $set: { accepted: true } })
+                    .then(() => {
+                      res.status(200).json({message: 'credits added for a user'});
+                    })
+                    .catch(err => {
+                      res.status(500).json({message: err});
+                    });
                 })
                 .catch(err => {
                   res.status(500).json({message: err});
