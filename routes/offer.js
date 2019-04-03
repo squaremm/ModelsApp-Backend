@@ -96,7 +96,7 @@ module.exports = function(app) {
             })
           };
           console.log(availableAction);
-          User.findOneAndUpdate({_id: user.id}, {$push : { availableActions: availableAction }}).then(()=>{
+          User.findOneAndUpdate({_id: user._id}, { $push : { availableActions: availableAction }}).then(()=>{
             res.status(200);
 
           })
