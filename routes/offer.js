@@ -75,6 +75,7 @@ module.exports = function(app) {
         var offerCreditsArray = Array.from(Object.keys(credits));
         console.log(user.availableActions);
         if(user.availableActions.filter(action =>  action.offerId == id) == 0){
+          console.log('not found available action ');
           user.availableActions.push({
             offerId: id,
             actions: offerCreditsArray.map(x=> {
@@ -85,9 +86,11 @@ module.exports = function(app) {
                 active: true
               }
             })
-          })
-          User.replaceOne({_id : user.id, user});
-          req.status(200);
+          });
+          console.log(user.availableActions);
+          User.replaceOne({_id : user.id, user}).then(()=>{
+            req.status(200);
+          });
         }else{
 
         } 
