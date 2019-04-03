@@ -29,21 +29,6 @@ db.getInstance(function (p_db) {
 
 module.exports = function(app) {
 
-  app.get('/api/test/push', async function (req, res) {
-    User.findOne({_id: 31 }).then(x=> {
-     
-      x.devices.forEach(element => {
-        sendIos(element, x).then(xx=>{
-
-        })
-        .catch(e =>{
-
-        });
-      });
-    }).catch(err=>{
-      res.json(err);
-    });
-  });
   // Get the current (authenticated) User
   app.get('/api/user/current', middleware.isAuthorized, async function (req, res) {
     var user = await req.user;

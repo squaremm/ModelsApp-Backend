@@ -28,6 +28,16 @@ async function userRejectNotification(devices) {
   devices.forEach(async (device) => {
      await apnProvider.send(note, device);
   });
+async function actionAcceptNotification(devices) {
+    var note = new apn.Notification();
+    note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
+    note.badge = 1;
+    note.alert = `\uD83D\uDCE7 \u2709 You get new credits!`;
+    note.payload = { message: `We accepted your action`, pushType: 'actionAccepted' };
+  
+    devices.forEach(async (device) => {
+       await apnProvider.send(note, device);
+    });
 }
 
 var User, Place, Offer, OfferPost, Booking;
@@ -70,7 +80,7 @@ module.exports = function(app) {
       if(updated.value !== undefined && updated.value !== null){
         var devices = updated.value.devices;
 
-        userAcceptNotification(devices)
+        userRejectNotification(devices)
         .then(x=>{
           res.json({ message: "The model has been rejected" });
         })
@@ -137,6 +147,34 @@ module.exports = function(app) {
         });
       }
     });
+  });
+
+  app.put('api/admin/offerpost/:id/accept', async (req,res)=> {
+    var id = parseInt(req.params.id);
+    //find post action in db
+    OfferPost.findOne({ _id: id })
+      .then(offerPost => {
+        if(!offerPost.accepted){
+          User.findOneAndUpdate({ _id: offerPost.user }, { $inc: { credits: offerPost.credits } })
+            .then(user => {
+              actionAcceptNotification(user.devices)
+                .then(() => {
+                  res.status(200).json({message: 'credits added for a user'});
+                })
+                .catch(err => {
+                  res.status(500).json({message: err});
+                });
+            })
+            .catch(err => {
+              res.status(404).json({message: 'user not found'});
+            });
+        }else{
+          res.status(400).json({message: 'action arleady accepted'});
+        }
+      })
+      .catch(err => {
+        res.status(404).json({message: 'action not found'});
+      });
   });
 
   // Reject the Offer Post without difficulties
