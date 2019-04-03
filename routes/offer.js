@@ -76,6 +76,14 @@ module.exports = function(app) {
         console.log(user.availableActions);
         if(user.availableActions.filter(action =>  action.offerId == id) == 0){
           console.log('not found available action ');
+          var availableTypes = { 
+            'instaStories' : 'Instagram story',
+            'instaPost': 'Instagram post',
+            'fbPost': 'Facebook post',
+            'tripAdvisorPost': 'Tripadvisor',
+            'yelpPost': 'Yelp review',
+            'gPost': 'Google post'
+          }
           user.availableActions.push({
             offerId: id,
             actions: offerCreditsArray.map(x=> {
