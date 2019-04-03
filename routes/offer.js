@@ -101,6 +101,28 @@ module.exports = function(app) {
     });
   });
 
+  app.get('/api/offer/:id/actions', async function(req, res) {
+    //var user = await req.user;
+    var id = parseInt(req.params.id);
+    
+      Offer.findOne({_id: id}).then(offer => {
+        var credits = offer.credits;
+        var offerCreditsArray = Array.from(Object.keys(credits));
+        
+        res.json(offerCreditsArray.map(x=> {
+              return {
+                displayName: availableTypes[x],
+                type: x,
+                credits: credits[x],
+                active: true
+              }
+            }))
+          })
+      .catch(err => {
+        res.status(500).json({message: err});
+      });
+    });
+
   // Create the offer. Then wait for the post, admin's check of the post, and then close it
   app.post('/api/place/:id/offer', function (req, res) {
     var id = parseInt(req.params.id);
