@@ -86,6 +86,8 @@ module.exports = function(app) {
               }
             })
           })
+          User.replaceOne({_id : user.id, user});
+          req.status(200);
         }else{
 
         } 
