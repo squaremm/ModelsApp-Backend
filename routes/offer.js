@@ -73,16 +73,19 @@ module.exports = function(app) {
       'yelpPost': 'Yelp review',
       'gPost': 'Google post'
     }
-      Offer.findOne({_id: id}).then(x => {
-        var credits = x.credits;
+      Offer.findOne({_id: id}).then(offer => {
+        var credits = offer.credits;
         var offerCreditsArray = Array.from(Object.keys(credits));
-        res.status(200).json(offerCreditsArray.map(x=> {
-          return {
-            displayName: availableTypes[x],
-            type: x,
-            credits: credits[x]
-          }
-        }));
+        OfferPost.find({offer : offer._id }).toArray((err, offerPosts) => {
+          res.status(200).json(offerCreditsArray.map(x=> {
+            return {
+              displayName: availableTypes[x],
+              type: x,
+              credits: credits[x],
+              active: offerPosts.filter(o => o.type == x) > 0
+            }
+          }));
+        });
       })
       .catch(err => {
         res.status(500).json({message: err});

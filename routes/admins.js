@@ -183,7 +183,19 @@ module.exports = function(app) {
         res.status(404).json({message: 'action not found'});
       });
   });
-
+  app.put('/api/admin/offerpost/:id/reject', async (req,res)=> {
+    var id = parseInt(req.params.id);
+    //find post action in db
+    OfferPost.findOne({ _id: id })
+      .then(offerPost => {
+        if(offerPost.accepted){
+          res.status(400).json({message: 'action arleady accepted'});
+        }
+      })
+      .catch(err => {
+        res.status(404).json({message: 'action not found'});
+      });
+  });
   // Reject the Offer Post without difficulties
   app.put('/api/admin/rejectOfferPost/:id', middleware.isAdmin, function (req, res) {
     var id = parseInt(req.params.id);
