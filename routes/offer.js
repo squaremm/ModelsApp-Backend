@@ -13,14 +13,7 @@ db.getInstance(function (p_db) {
   Interval = p_db.collection('bookingIntervals');
   SamplePost = p_db.collection('sampleposts');
 });
-var availableTypes = { 
-  'instaStories' : 'Instagram story',
-  'instaPost': 'Instagram post',
-  'fbPost': 'Facebook post',
-  'tripAdvisorPost': 'Tripadvisor',
-  'yelpPost': 'Yelp review',
-  'gPost': 'Google post'
-}
+
 
 module.exports = function(app) {
 
@@ -104,7 +97,14 @@ module.exports = function(app) {
   app.get('/api/offer/:id/actions', async function(req, res) {
     //var user = await req.user;
     var id = parseInt(req.params.id);
-    
+    var availableTypes = { 
+      'instaStories' : 'Instagram story',
+      'instaPost': 'Instagram post',
+      'fbPost': 'Facebook post',
+      'tripAdvisorPost': 'Tripadvisor',
+      'yelpPost': 'Yelp review',
+      'gPost': 'Google post'
+    }
       Offer.findOne({_id: id}).then(offer => {
         var credits = offer.credits;
         var offerCreditsArray = Array.from(Object.keys(credits));
