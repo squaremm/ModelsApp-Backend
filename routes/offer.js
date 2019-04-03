@@ -108,7 +108,7 @@ module.exports = function(app) {
       Offer.findOne({_id: id}).then(offer => {
         var credits = offer.credits;
         var offerCreditsArray = Array.from(Object.keys(credits));
-        
+        console.log(credits);
         res.json(offerCreditsArray.map(x=> {
               return {
                 displayName: availableTypes[x],
