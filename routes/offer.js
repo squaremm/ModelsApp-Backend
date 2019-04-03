@@ -119,7 +119,7 @@ module.exports = function(app) {
             }))
           })
       .catch(err => {
-        res.status(500).json({message: err});
+        res.status(500).json({message: 'err'});
       });
     });
 
