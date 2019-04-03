@@ -73,7 +73,6 @@ module.exports = function(app) {
       Offer.findOne({_id: id}).then(offer => {
         var credits = offer.credits;
         var offerCreditsArray = Array.from(Object.keys(credits));
-        console.log(user.availableActions);
         if(user.availableActions.filter(action =>  action.offerId == id) == 0){
           console.log('not found available action ');
           var availableTypes = { 
@@ -95,7 +94,6 @@ module.exports = function(app) {
               }
             })
           };
-          console.log(availableAction);
           User.findOneAndUpdate({_id: user._id}, { $push : { availableActions: availableAction }}).then(()=>{
             res.status(200);
           })
