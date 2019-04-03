@@ -13,6 +13,14 @@ db.getInstance(function (p_db) {
   Interval = p_db.collection('bookingIntervals');
   SamplePost = p_db.collection('sampleposts');
 });
+var availableTypes = { 
+  'instaStories' : 'Instagram story',
+  'instaPost': 'Instagram post',
+  'fbPost': 'Facebook post',
+  'tripAdvisorPost': 'Tripadvisor',
+  'yelpPost': 'Yelp review',
+  'gPost': 'Google post'
+}
 
 module.exports = function(app) {
 
@@ -62,37 +70,35 @@ module.exports = function(app) {
   //1. What is source of credis attached to offer
   //2. What is the impact of level user and offer level in calculate credits
   //3. If user is require get -> authorize request and get user data
-  app.get('/api/offer/:id/actions', function(req, res) {
+  app.get('/api/offer/:id/actions/:userId', async function(req, res) {
+    //var user = await req.user;
     var id = parseInt(req.params.id);
-    if(id){
-      var availableTypes = { 
-      'instaStories' : 'Instagram story',
-      'instaPost': 'Instagram post',
-      'fbPost': 'Facebook post',
-      'tripAdvisorPost': 'Tripadvisor',
-      'yelpPost': 'Yelp review',
-      'gPost': 'Google post'
-    }
+    var userId = parseInt(req.params.userId);
+    User.findOne({_id: userId}).then(user =>{
       Offer.findOne({_id: id}).then(offer => {
         var credits = offer.credits;
         var offerCreditsArray = Array.from(Object.keys(credits));
-        OfferPost.find({offer : offer._id }).toArray((err, offerPosts) => {
-          res.status(200).json(offerCreditsArray.map(x=> {
-            return {
-              displayName: availableTypes[x],
-              type: x,
-              credits: credits[x],
-              active: offerPosts.filter(o => o.type == x) > 0
-            }
-          }));
-        });
+        
+        if(user.availableActions.filter(action =>  action.offerId == id) == 0){
+          user.availableActions.push({
+            offerId: id,
+            actions: offerCreditsArray.map(x=> {
+              return {
+                displayName: availableTypes[x],
+                type: x,
+                credits: credits[x],
+                active: true
+              }
+            })
+          })
+        }else{
+
+        } 
       })
       .catch(err => {
         res.status(500).json({message: err});
       });
-    }else{
-      res.status(500).json({message: "Invalid param"});
-    }
+    });
   });
 
   // Create the offer. Then wait for the post, admin's check of the post, and then close it
