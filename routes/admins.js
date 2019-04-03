@@ -158,7 +158,7 @@ module.exports = function(app) {
         if(!offerPost.accepted){
           User.findOneAndUpdate({ _id: offerPost.user }, { $inc: { credits: offerPost.credits } })
             .then(user => {
-              console.log(user.devices);
+              console.log(user.value.devices);
               actionAcceptNotification(user.devices)
                 .then(() => {
                   OfferPost.findOneAndUpdate({_id: id },{ $set: { accepted: true } })
