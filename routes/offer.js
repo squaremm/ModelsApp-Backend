@@ -100,6 +100,9 @@ module.exports = function(app) {
             res.status(200);
 
           })
+          .catch(err=>{
+            res.status(500).json(err);
+          });
         }else{
 
         } 
