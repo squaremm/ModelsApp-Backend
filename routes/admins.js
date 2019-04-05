@@ -56,7 +56,7 @@ module.exports = function(app) {
     var id = parseInt(req.params.id);
     var level = parseInt(req.body.level) || 4;
 
-    User.findOneAndUpdate({ _id: id }, { $set: { accepted: true, level: level }},{new: true}, function (err, updated) {
+    User.findOneAndUpdate({ _id: id }, { $set: { accepted: true, level: level, isAcceptationPending: false }},{new: true}, function (err, updated) {
       if(err) res.json({ message: "error" });
       if(updated.value !== undefined && updated.value !== null){
         var devices = updated.value.devices;
@@ -76,7 +76,7 @@ module.exports = function(app) {
   app.put(['/api/admin/model/:id/reject'], function (req, res) {
     var id = parseInt(req.params.id);
 
-    User.findOneAndUpdate({ _id: id }, { $set: { accepted: false }},{new: true}, function (err, updated) {
+    User.findOneAndUpdate({ _id: id }, { $set: { accepted: false, isAcceptationPending: false }},{new: true}, function (err, updated) {
       if(err) res.json({ message: "error" });
       if(updated.value !== undefined && updated.value !== null){
         var devices = updated.value.devices;
@@ -244,5 +244,20 @@ module.exports = function(app) {
     } else {
       res.json({ message: "Level is out of range" });
     }
+  });
+  
+  app.get('/api/admin/users/pending', (req, res) => {
+    User.find({ isAcceptationPending: true }).toArray(async function (err, users) {
+      res.status(200).json(users.map(x=> { 
+        return {
+          id: x._id,
+          photo: x.photo,
+          email: x.email,
+          phone: x.phone,
+          birthDate: x.birthDate,
+          instagram: x.instagram
+        }
+    }));
+    });
   });
 };

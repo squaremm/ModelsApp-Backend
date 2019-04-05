@@ -58,6 +58,7 @@ module.exports = function(passport) {
             newUser.referredFrom = null;
             newUser.devices = [];
             newUser.plan = {};
+            newUser.isAcceptationPending = true;
 
             // Update counters. In mongo we need an another collection to store the autoincrement
             Counter.findOneAndUpdate(
