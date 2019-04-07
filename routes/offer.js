@@ -89,7 +89,7 @@ module.exports = function(app) {
                   };
                   Booking.findOneAndUpdate({_id: bookingId}, { $push : { offerActions: offerAction }})
                     .then(()=>{
-                    res.status(200).json(offerAction);
+                    res.status(200).json(offerAction.actions);
                   })
                   .catch(err =>{
                     res.status(500).json({message: err});
