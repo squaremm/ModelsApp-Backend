@@ -71,7 +71,7 @@ module.exports = function(app) {
                 var offerActions = booking.offerActions;
                 //check if user arleady go to choose action for particular offer
                 if(offerActions.filter(offerAction => offerAction.offerId == offerId).length > 0) {
-                  res.status(200).json(offerActions.filter(offerAction => offerAction.offerId == offerId)[0]);
+                  res.status(200).json(offerActions.filter(offerAction => offerAction.offerId == offerId)[0].actions);
                 }else{
                   //first apperence we need to create available actions
                   var credits = offer.credits;
