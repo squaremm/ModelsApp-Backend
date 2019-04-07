@@ -260,4 +260,42 @@ module.exports = function(app) {
     }));
     });
   });
+  app.get('/api/admin/users/offerPosts', (req,res) =>{
+    var data = new Array();
+    OfferPost.aggregate([
+      {
+        '$group': {
+          '_id': '$creationDate', 
+          'offerPosts': {
+            '$push': '$$ROOT'
+          }
+        }
+      }
+    ], function(err, cursor) {
+      User.find({}).toArray(async function(err, users){
+        users = users.map(x => {
+          return {
+            _id : x._id,
+            credits: x.credits,
+            name: x.name,
+            instagramName: x.instagram.full_name,
+            email:  x.email,
+            photo: x.photo
+          }
+        });
+        await cursor.forEach(async function(c){
+          var singleData = {
+            date: c._id,
+            offerPosts: c.offerPosts
+          };
+          singleData.offerPosts.forEach( element => {
+            var user = users.find(x=>x._id == element.user);
+            element.user = user;
+          });
+          data.push(singleData);
+        });
+        res.status(200).json(data);
+      });
+    });
+  });
 };
