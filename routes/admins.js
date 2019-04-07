@@ -40,6 +40,17 @@ async function actionAcceptNotification(devices) {
        await apnProvider.send(note, device);
     });
 }
+async function creditAddNotification(devices) {
+  var note = new apn.Notification();
+  note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
+  note.badge = 1;
+  note.alert = `\uD83D\uDCE7 \u2709 You get new credits!`;
+  note.payload = { message: `You get extra credits have fun!`, pushType: 'creditsAdded' };
+
+  devices.forEach(async (device) => {
+     await apnProvider.send(note, device);
+  });
+}
 
 var User, Place, Offer, OfferPost, Booking;
 db.getInstance(function (p_db) {
@@ -93,6 +104,20 @@ module.exports = function(app) {
         res.json({ message: "No such user" });
       }
     });
+  });
+
+  app.put('/api/admin/model/:id/extraCredits', (req, res) => {
+    var id = parseInt(req.params.id);
+    var creditValue = parseInt(req.body.credits);
+    if(id && creditValue){
+      User.findOneAndUpdate({ _id : id }, { $inc: { credits: creditValue }}).then( (user) => {
+        creditAddNotification(user.value.devices).then(() =>{
+          res.status(200).json({message: "Credits added"});
+        });
+      });
+    }else{
+      res.status(400).json({ message: "Invalid parameters" });
+    }
   });
 
   // Constant payments or penalties for models which
