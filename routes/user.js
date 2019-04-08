@@ -64,14 +64,17 @@ module.exports = function(app) {
   });
 
   // Delete specific User
+  // not handle flag anywhere in system
   app.delete('/api/user/:id', function (req, res) {
-    User.findOne({ _id: parseInt(req.params.id) }, function (err, user) {
+    User.findOneAndUpdate({ _id: parseInt(req.params.id)}, { $set: {deleted: true } }, function (err, user) {
       if(err) res.json({ message: err });
       if(!user){
         res.json({ message: "No such user" })
       } else {
-        User.deleteOne({ _id: parseInt(req.body.id) });
-        res.json({ message: "Deleted" });
+        // User.deleteOne({ _id: parseInt(req.params.id) }, function(err, user){
+        //   res.json({ message: "Deleted" });
+        // });
+        res.json({message: "user deleted"});
       }
     });
   });

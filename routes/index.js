@@ -11,7 +11,7 @@ async function sendIos(deviceId, user) {
   note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
   note.badge = 1;
   note.alert = `\uD83D\uDCE7 \u2709 New referral!`;
-  note.payload = { message: `You have one new referral: ${user}`, referralAccepted: 1 };
+  note.payload = { message: `You have one new referral: ${user}`, pushType: 'referralAdded' };
 
   try{
     var data = await apnProvider.send(note, deviceId);
