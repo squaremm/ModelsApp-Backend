@@ -336,10 +336,9 @@ module.exports = function(app) {
   });
 
 app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, function (req, res) {
-
   
     var bookingId = parseInt(req.params.bookingId);
-    OfferPost.findOne({ offer: parseInt(req.params.id), booking: bookingId}, function(err, dbOfferPost){
+    OfferPost.findOne({ offer: parseInt(req.params.id), booking: bookingId, type: req.body.postType }, function(err, dbOfferPost){
       if(dbOfferPost){
         res.status(400).json({message: "You arleady done this action"});
       }else{
