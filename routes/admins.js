@@ -324,4 +324,46 @@ module.exports = function(app) {
       });
     });
   });
+  app.get('/api/admin/user/:id/followers', async (req, res) => {
+    var id = parseInt(req.params.id);
+    if(id){
+      User.find({}).toArray(async function(err, users){
+        users = mapUsers(users);
+
+        user = users.find((user) => user._id == id);
+        if(user){
+         await getFollowers(users, user);
+          res.status(200).json(user);
+        }else{
+          res.status(404).json({message: "User not found"});
+        }
+      });
+    }
+    else{
+      res.status(400).json({message: "Invalid parameters"});
+    }
+  });
+
+ async function getFollowers(users, user){
+    user.followers = [];
+    if(users.find(x => x.referredFrom == user._id)){
+      var foundUsers =  users.filter(x => x.referredFrom == user._id);
+      await foundUsers.forEach( async element => {
+        await getFollowers(users, element);
+        user.followers.push(element);
+      });
+    }
+  }
+  function mapUsers(users){
+   return users.map(x => {
+      return {
+        _id : x._id,
+        credits: x.credits,
+        name: x.name,
+        email:  x.email,
+        photo: x.photo,
+        referredFrom: x.referredFrom
+      }
+    });
+  }
 };
