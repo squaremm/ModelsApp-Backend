@@ -177,6 +177,7 @@ module.exports = function(app) {
 
   app.put('/api/admin/offerpost/:id/accept', async (req,res)=> {
     var id = parseInt(req.params.id);
+    var approvementLink = req.body.approvementLink;
     //find post action in db
     OfferPost.findOne({ _id: id })
       .then(offerPost => {
@@ -185,7 +186,7 @@ module.exports = function(app) {
             .then(user => {
               actionAcceptNotification(user.value.devices)
                 .then(() => {
-                  OfferPost.findOneAndUpdate({_id: id },{ $set: { accepted: true } })
+                  OfferPost.findOneAndUpdate({_id: id },{ $set: { accepted: true, approvementLink: approvementLink } })
                     .then(() => {
                       res.status(200).json({message: 'credits added for a user'});
                     })
