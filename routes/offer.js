@@ -387,7 +387,7 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
                       } else {
                         
                         Booking.updateOne(
-                          { 'offerActions.offerId': offerPost.offer },
+                          { 'offerActions.offerId': offerPost.offer, _id : bookingId  },
                           { $set: { 'offerActions.$.actions.$[t].active': false }},
                           { arrayFilters: [ {"t.type": offerPost.type  } ] } )
 
