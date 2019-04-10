@@ -386,6 +386,7 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
                         res.json({message: "No such offer"});
                       } else {
                         
+                        
                         Booking.updateOne(
                           { 'offerActions.offerId': offerPost.offer, _id : bookingId  },
                           { $set: { 'offerActions.$.actions.$[t].active': false }},
