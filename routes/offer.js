@@ -386,20 +386,23 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
                         res.json({message: "No such offer"});
                       } else {
                         
-                        
+
                         Booking.updateOne(
                           { 'offerActions.offerId': offerPost.offer, _id : bookingId  },
                           { $set: { 'offerActions.$.actions.$[t].active': false }},
-                          { arrayFilters: [ {"t.type": offerPost.type  } ] } )
+                          { arrayFilters: [ {"t.type": offerPost.type  } ] } , function(err, booking){
 
-                        Place.findOneAndUpdate({_id: offer.value.place}, {$push: {posts: seq.value.seq}});
-                        User.findOneAndUpdate({_id: offerPost.user}, {$push: {offerPosts: seq.value.seq}}, function (err, user) {
-                          if (!user.value) {
-                            res.json({message: "Mistake in the offer"});
-                          } else {
-                            res.json({message: "Offer post created"});
-                          }
-                        });
+                            console.log(booking);
+                            console.log(err);
+                            Place.findOneAndUpdate({_id: offer.value.place}, {$push: {posts: seq.value.seq}});
+                            User.findOneAndUpdate({_id: offerPost.user}, {$push: {offerPosts: seq.value.seq}}, function (err, user) {
+                              if (!user.value) {
+                                res.json({message: "Mistake in the offer"});
+                              } else {
+                                res.json({message: "Offer post created"});
+                              }
+                            });
+                          });
                       }
                     });
                   }
