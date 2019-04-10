@@ -42,7 +42,7 @@ module.exports = function(passport) {
               return done(null, existingUser);
             }
           } else {
-
+            console.log("start to create new user");
             // If it is the first time for the user - create new user in DB
             var newUser = {};
             newUser.photo = profile._json.data.profile_picture;
@@ -71,6 +71,7 @@ module.exports = function(passport) {
 
                 // Insert new user into DB
                 User.insertOne( newUser, function(err, user) {
+                  console.log("New user inserted");
                   if (err) {
                     return done(err);
                   }
