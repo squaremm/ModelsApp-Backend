@@ -27,7 +27,7 @@ module.exports = function (app) {
   app.get('/api/auth/instagram/callback', function (req, res, next) {
     passport.authenticate('instagram', { session: false, failWithError: true},
       async function (err, user) {
-        console.log('Get user from callback');
+       // console.log('Get user from callback');
       user = await user;
       if (err) return res.json({ message: err.message, token: null });
       if (!user) {

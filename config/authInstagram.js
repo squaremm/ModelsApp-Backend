@@ -21,7 +21,7 @@ module.exports = function(passport) {
         passReqToCallback : true
       },
       async function (req, accessToken, refreshToken, profile, done) {
-        console.log("Passport function entry");
+       // console.log("Passport function entry");
         // Only if user is not authenticated
         if(!req.user){
 
@@ -42,7 +42,7 @@ module.exports = function(passport) {
               return done(null, existingUser);
             }
           } else {
-            console.log("start to create new user");
+            //console.log("start to create new user");
             // If it is the first time for the user - create new user in DB
             var newUser = {};
             newUser.photo = profile._json.data.profile_picture;
@@ -71,7 +71,7 @@ module.exports = function(passport) {
 
                 // Insert new user into DB
                 User.insertOne( newUser, function(err, user) {
-                  console.log("New user inserted");
+                 // console.log("New user inserted");
                   if (err) {
                     return done(err);
                   }
