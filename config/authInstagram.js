@@ -21,7 +21,7 @@ module.exports = function(passport) {
         passReqToCallback : true
       },
       async function (req, accessToken, refreshToken, profile, done) {
-
+        console.log("Passport function entry");
         // Only if user is not authenticated
         if(!req.user){
 
