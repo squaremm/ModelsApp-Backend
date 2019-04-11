@@ -58,63 +58,57 @@ module.exports = function(app) {
     });
   });
 
-  //Get action for specify offer
-  //Need to handle logic:
-  //1. What is source of credis attached to offer
-  //2. What is the impact of level user and offer level in calculate credits
-  //3. If user is require get -> authorize request and get user data
-  app.get('/api/offer/:id/actions/:userId', async function(req, res) {
-    //var user = await req.user;
-    var id = parseInt(req.params.id);
-    var userId = parseInt(req.params.userId);
-    console.log(userId);
-    console.log(id);
-    User.findOne({_id: userId}).then(user => {
-      Offer.findOne({_id: id}).then(offer => {
-        var credits = offer.credits;
-        var offerCreditsArray = Array.from(Object.keys(credits));
-        console.log('here1');
-        if(user.availableActions.filter(action =>  action.offerId == id) == 0){
-          console.log('not found available action ');
-          var availableTypes = { 
-            'instaStories' : 'Instagram story',
-            'instaPost': 'Instagram post',
-            'fbPost': 'Facebook post',
-            'tripAdvisorPost': 'Tripadvisor',
-            'yelpPost': 'Yelp review',
-            'gPost': 'Google post'
-          }
-          var availableAction = {
-            offerId: id,
-            actions: offerCreditsArray.map(x=> {
-              return {
-                displayName: availableTypes[x],
-                type: x,
-                credits: credits[x],
-                active: true
-              }
+  app.get('/api/offer/:id/booking/:bookingId/actions', async (req, res) =>{
+    var offerId = parseInt(req.params.id);
+    var bookingId = parseInt(req.params.bookingId);
+    if(offerId && bookingId){
+      Offer.findOne({ _id: offerId })
+        .then(offer => {
+          if(!offer)  res.status(404).json({message: "offer not found"});
+          Booking.findOne({_id: bookingId})
+            .then(booking => {
+              if(!booking) res.status(404).json({message: "booking not found"});
+                var offerActions = booking.offerActions;
+                //check if user arleady go to choose action for particular offer
+                if(offerActions.filter(offerAction => offerAction.offerId == offerId).length > 0) {
+                  res.status(200).json(offerActions.filter(offerAction => offerAction.offerId == offerId)[0].actions);
+                }else{
+                  //first apperence we need to create available actions
+                  var credits = offer.credits;
+                  var offerCreditsArray = Array.from(Object.keys(credits));
+                  var offerAction = {
+                    offerId: offerId,
+                    actions: offerCreditsArray.map(x=> {
+                      return {
+                        displayName: getAvailableActionTypes()[x],
+                        type: x,
+                        credits: credits[x],
+                        active: true
+                      }
+                    })
+                  };
+                  Booking.findOneAndUpdate({_id: bookingId}, { $push : { offerActions: offerAction }})
+                    .then(()=>{
+                    res.status(200).json(offerAction.actions);
+                  })
+                  .catch(err =>{
+                    res.status(500).json({message: err});
+                  });
+                }
             })
-          };
-          User.findOneAndUpdate({_id: user._id}, { $push : { availableActions: availableAction }}).then(()=>{
-            res.status(200).json();
-          })
-          .catch(err=>{
-            res.status(500).json(err);
-          });
-        }else{
-          console.log('here');
-          res.status(200).json();
-        } 
-      })
-      .catch(err => {
-        res.status(500).json({message: err});
-      });
-    });
-  });
+            .catch(err => {
+              res.status(404).json({message: err.message});
+            });
+        })
+        .catch(err => {
+          res.status(404).json({message: err.message});
+        });
 
-  app.get('/api/offer/:id/actions', async function(req, res) {
-    //var user = await req.user;
-    var id = parseInt(req.params.id);
+    }else{
+      res.status(400).json({message: "invalid parameters"});
+    }
+  });
+  function getAvailableActionTypes(){
     var availableTypes = { 
       'instaStories' : 'Instagram story',
       'instaPost': 'Instagram post',
@@ -123,13 +117,20 @@ module.exports = function(app) {
       'yelpPost': 'Yelp review',
       'gPost': 'Google post'
     }
+    return availableTypes;
+  }
+
+  app.get('/api/offer/:id/actions', async function(req, res) {
+    //var user = await req.user;
+    var id = parseInt(req.params.id);
+
       Offer.findOne({_id: id}).then(offer => {
         var credits = offer.credits;
         var offerCreditsArray = Array.from(Object.keys(credits));
 
         res.json(offerCreditsArray.map(x=> {
               return {
-                displayName: availableTypes[x],
+                displayName: getAvailableActionTypes()[x],
                 type: x,
                 credits: credits[x],
                 active: true
@@ -314,6 +315,7 @@ module.exports = function(app) {
                   if (!offer.value) {
                     res.json({message: "No such offer"});
                   } else {
+
                     Place.findOneAndUpdate({_id: offer.value.place}, {$push: {posts: seq.value.seq}});
                     User.findOneAndUpdate({_id: offerPost.user}, {$push: {offerPosts: seq.value.seq}}, function (err, user) {
                       if (!user.value) {
@@ -333,6 +335,87 @@ module.exports = function(app) {
     });
   });
 
+app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, function (req, res) {
+  
+    var bookingId = parseInt(req.params.bookingId);
+    OfferPost.findOne({ offer: parseInt(req.params.id), booking: bookingId, type: req.body.postType }, function(err, dbOfferPost){
+      if(dbOfferPost){
+        res.status(400).json({message: "You arleady done this action"});
+      }else{
+
+    Offer.findOne({_id: parseInt(req.params.id)}, function (err, offer) {
+      if (!offer) {
+        res.json({message: "No such offer"});
+      } else {
+        Booking.findOne({_id: bookingId}, function(err, booking){
+          if(!booking){
+            res.status(404).json({message: "No such booking"});
+          }else{
+            if (!req.body.postType || !req.body.link || !req.body.feedback) {
+              res.json({message: "Not all fields are provided"});
+            } else {
+              if (!offer.credits[req.body.postType]) {
+                res.json({message: "This Post type is unsupported"});
+              } else {
+    
+                var offerPost = {};
+                offerPost.type = req.body.postType;
+                offerPost.credits = offer.credits[offerPost.type];
+                offerPost.offer = parseInt(req.params.id);
+                offerPost.stars = parseInt(req.body.stars) || 0;
+                offerPost.creationDate = moment().format('DD-MM-YYYY');
+                offerPost.link = req.body.link;
+                offerPost.feedback = req.body.feedback;
+                offerPost.place = offer.place;
+                offerPost.accepted = false;
+                offerPost.user = req.user._id;
+                offerPost.booking = booking._id;
+
+                Counter.findOneAndUpdate(
+                  {_id: "offerpostid"},
+                  {$inc: {seq: 1}},
+                  {new: true},
+                  function (err, seq) {
+                    if (err) console.log(err);
+                    offerPost._id = seq.value.seq;
+    
+                    OfferPost.insertOne(offerPost);
+    
+                    Offer.findOneAndUpdate({_id: offerPost.offer}, {$set: {post: seq.value.seq}}, function (err, offer) {
+                      if (!offer.value) {
+                        res.json({message: "No such offer"});
+                      } else {
+                        
+
+                        Booking.updateOne(
+                          { 'offerActions.offerId': offerPost.offer, _id : bookingId  },
+                          { $set: { 'offerActions.$.actions.$[t].active': false }},
+                          { arrayFilters: [ {"t.type": offerPost.type  } ] } , function(err, booking){
+
+                            console.log(booking);
+                            console.log(err);
+                            Place.findOneAndUpdate({_id: offer.value.place}, {$push: {posts: seq.value.seq}});
+                            User.findOneAndUpdate({_id: offerPost.user}, {$push: {offerPosts: seq.value.seq}}, function (err, user) {
+                              if (!user.value) {
+                                res.json({message: "Mistake in the offer"});
+                              } else {
+                                res.json({message: "Offer post created"});
+                              }
+                            });
+                          });
+                      }
+                    });
+                  }
+                );
+              }
+            }
+          }
+        })
+      }
+    });
+  }
+  });
+  });
   // Get all OfferPosts created today
   app.get('/api/offerPosts/today', function (req, res) {
     var today = moment().format('DD-MM-YYYY');

@@ -40,6 +40,17 @@ async function actionAcceptNotification(devices) {
        await apnProvider.send(note, device);
     });
 }
+async function creditAddNotification(devices) {
+  var note = new apn.Notification();
+  note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
+  note.badge = 1;
+  note.alert = `\uD83D\uDCE7 \u2709 You get new credits!`;
+  note.payload = { message: `You get extra credits have fun!`, pushType: 'creditsAdded' };
+
+  devices.forEach(async (device) => {
+     await apnProvider.send(note, device);
+  });
+}
 
 var User, Place, Offer, OfferPost, Booking;
 db.getInstance(function (p_db) {
@@ -56,7 +67,7 @@ module.exports = function(app) {
     var id = parseInt(req.params.id);
     var level = parseInt(req.body.level) || 4;
 
-    User.findOneAndUpdate({ _id: id }, { $set: { accepted: true, level: level }},{new: true}, function (err, updated) {
+    User.findOneAndUpdate({ _id: id }, { $set: { accepted: true, level: level, isAcceptationPending: false }},{new: true}, function (err, updated) {
       if(err) res.json({ message: "error" });
       if(updated.value !== undefined && updated.value !== null){
         var devices = updated.value.devices;
@@ -76,7 +87,7 @@ module.exports = function(app) {
   app.put(['/api/admin/model/:id/reject'], function (req, res) {
     var id = parseInt(req.params.id);
 
-    User.findOneAndUpdate({ _id: id }, { $set: { accepted: false }},{new: true}, function (err, updated) {
+    User.findOneAndUpdate({ _id: id }, { $set: { accepted: false, isAcceptationPending: false }},{new: true}, function (err, updated) {
       if(err) res.json({ message: "error" });
       if(updated.value !== undefined && updated.value !== null){
         var devices = updated.value.devices;
@@ -93,6 +104,20 @@ module.exports = function(app) {
         res.json({ message: "No such user" });
       }
     });
+  });
+
+  app.put('/api/admin/model/:id/extraCredits', (req, res) => {
+    var id = parseInt(req.params.id);
+    var creditValue = parseInt(req.body.credits);
+    if(id && creditValue){
+      User.findOneAndUpdate({ _id : id }, { $inc: { credits: creditValue }}).then( (user) => {
+        creditAddNotification(user.value.devices).then(() =>{
+          res.status(200).json({message: "Credits added"});
+        });
+      });
+    }else{
+      res.status(400).json({ message: "Invalid parameters" });
+    }
   });
 
   // Constant payments or penalties for models which
@@ -152,6 +177,7 @@ module.exports = function(app) {
 
   app.put('/api/admin/offerpost/:id/accept', async (req,res)=> {
     var id = parseInt(req.params.id);
+    var approvementLink = req.body.approvementLink;
     //find post action in db
     OfferPost.findOne({ _id: id })
       .then(offerPost => {
@@ -160,7 +186,7 @@ module.exports = function(app) {
             .then(user => {
               actionAcceptNotification(user.value.devices)
                 .then(() => {
-                  OfferPost.findOneAndUpdate({_id: id },{ $set: { accepted: true } })
+                  OfferPost.findOneAndUpdate({_id: id },{ $set: { accepted: true, approvementLink: approvementLink } })
                     .then(() => {
                       res.status(200).json({message: 'credits added for a user'});
                     })
@@ -245,4 +271,99 @@ module.exports = function(app) {
       res.json({ message: "Level is out of range" });
     }
   });
+  
+  app.get('/api/admin/users/pending', (req, res) => {
+    User.find({ isAcceptationPending: true }).toArray(async function (err, users) {
+      res.status(200).json(users.map(x=> { 
+        return {
+          id: x._id,
+          photo: x.photo,
+          email: x.email,
+          phone: x.phone,
+          birthDate: x.birthDate,
+          instagram: x.instagram
+        }
+    }));
+    });
+  });
+  app.get('/api/admin/users/offerPosts', (req,res) =>{
+    var data = new Array();
+    OfferPost.aggregate([
+      {
+        '$group': {
+          '_id': '$creationDate', 
+          'offerPosts': {
+            '$push': '$$ROOT'
+          }
+        }
+      }
+    ], function(err, cursor) {
+      User.find({}).toArray(async function(err, users){
+        users = users.map(x => {
+          return {
+            _id : x._id,
+            credits: x.credits,
+            name: x.name,
+            instagramName: x.instagram.full_name,
+            email:  x.email,
+            photo: x.photo
+          }
+        });
+        await cursor.forEach(async function(c){
+          var singleData = {
+            date: c._id,
+            offerPosts: c.offerPosts
+          };
+          singleData.offerPosts.forEach( element => {
+            var user = users.find(x=>x._id == element.user);
+            element.user = user;
+          });
+          data.push(singleData);
+        });
+        res.status(200).json(data);
+      });
+    });
+  });
+  app.get('/api/admin/user/:id/followers', async (req, res) => {
+    var id = parseInt(req.params.id);
+    if(id){
+      User.find({}).toArray(async function(err, users){
+        users = mapUsers(users);
+
+        user = users.find((user) => user._id == id);
+        if(user){
+         await getFollowers(users, user);
+          res.status(200).json(user);
+        }else{
+          res.status(404).json({message: "User not found"});
+        }
+      });
+    }
+    else{
+      res.status(400).json({message: "Invalid parameters"});
+    }
+  });
+
+ async function getFollowers(users, user){
+    user.followers = [];
+    if(users.find(x => x.referredFrom == user._id)){
+      var foundUsers =  users.filter(x => x.referredFrom == user._id);
+      await foundUsers.forEach( async element => {
+        await getFollowers(users, element);
+        user.followers.push(element);
+      });
+    }
+  }
+  function mapUsers(users){
+   return users.map(x => {
+      return {
+        _id : x._id,
+        credits: x.credits,
+        name: x.name,
+        email:  x.email,
+        photo: x.photo,
+        referredFrom: x.referredFrom
+      }
+    });
+  }
 };
