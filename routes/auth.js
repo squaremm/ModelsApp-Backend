@@ -28,6 +28,7 @@ module.exports = function (app) {
     passport.authenticate('instagram', { session: false, failWithError: true},
       async function (err, user) {
       console.log('Get user from callback');
+      console.log(req.params);
       user = await user;
       if (err) return res.json({ message: err.message, token: null });
       if (!user) {

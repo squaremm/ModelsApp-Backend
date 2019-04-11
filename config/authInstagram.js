@@ -80,6 +80,7 @@ module.exports = function(passport) {
                     console.log(err);
                     return done(err);
                   }
+                  console.log(user.ops[0]);
                   return done(null, user.ops[0]);
                 });
               }
