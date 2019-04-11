@@ -24,6 +24,7 @@ module.exports = function(passport) {
        console.log("Passport function entry");
         // Only if user is not authenticated
         if(!req.user){
+          console.log(profile);
           console.log('req not user exist');
           // If there is an existing user, check for new data in his Insta profile and update it
           var existingUser = await User.findOne({'instagram.id': profile.id});
