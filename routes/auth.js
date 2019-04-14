@@ -5,10 +5,10 @@ var isAuthorized = require('../config/authMiddleware').isAuthorized;
 var config = require('./../config/index');
 var httpRequest = require('request');
 var crypto = require('crypto');
+var authEmail = require('../config/authEmail');
 
 
-
-var User;
+var User, Counter;
 db.getInstance(function(p_db) {
   User = p_db.collection('users');
   Counter = p_db.collection('counters');
@@ -93,6 +93,9 @@ function createNewUser(profile){
     newUser.plan = {};
     newUser.isAcceptationPending = true;
     newUser._id = await getNewId('userId');
+    newUser.loginTypes = [];
+    newUser.loginTypes.push('instagram');
+    
     User.insertOne( newUser, function(err, user) {
     if (err) {
       reject(err);
@@ -113,7 +116,6 @@ function getNewId(type){
         else resolve(seq.value.seq);
       });
   })
-  
 }
 function getInstagramToken(req){
   return new Promise((resolve, reject) => {
@@ -245,4 +247,8 @@ function getInstagramUserDetails(accessToken){
         }
       })(req, res, next);
   });
+
+  app.post('/api/auth/user/signin', authEmail.createUser);
+
+  app.post('/api/auth/user/login', authEmail.loginUser);
 };
