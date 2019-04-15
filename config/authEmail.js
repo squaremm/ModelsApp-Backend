@@ -44,7 +44,7 @@ exports.createUser = async (req, res, next) => {
         }else {
             // should we defined extra logic here to handle users that loged into application before with instagram
             // lets check that user has sing in into application before with instagram
-            if(user.loginTypes.filter(login => login == 'instagram').length > 0 && user.loginTypes.filter(login => login == 'email').length == 0){
+            if(user.loginTypes && user.loginTypes.filter(login => login == 'instagram').length > 0 && user.loginTypes.filter(login => login == 'email').length == 0){
                 var instagramUsername = req.body.username;
                 // first time requestTriggered
                 if(!instagramUsername){
