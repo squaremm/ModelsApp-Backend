@@ -217,11 +217,12 @@ function editUser(id, newUser, res){
       if(newUser.gender !== user.gender && newUser.gender) user.gender = newUser.gender;
       if(newUser.nationality !== user.nationality && newUser.nationality) user.nationality = newUser.nationality;
       if(newUser.birthDate !== user.birthDate && newUser.birthDate) user.birthDate = newUser.birthDate;
-      if(newUser.email !== user.email && newUser.email) user.email = newUser.email;
+      //if(newUser.email !== user.email && newUser.email) user.email = newUser.email;
       if(newUser.phone !== user.phone && newUser.phone) user.phone = newUser.phone;
       if(newUser.motherAgency !== user.motherAgency && newUser.motherAgency) user.motherAgency = newUser.motherAgency;
       if(newUser.currentAgency !== user.currentAgency && newUser.currentAgency) user.currentAgency = newUser.currentAgency;
       if(newUser.city !== user.city && newUser.city) user.city = newUser.city;
+      if(newUser.instagramName !== user.instagramName && newUser.instagramName) user.instagramName = newUser.instagramName;
 
       // Add a deviceID to the devices array of the User's document
       if(newUser.deviceID) {
