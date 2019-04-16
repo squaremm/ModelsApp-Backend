@@ -1,8 +1,8 @@
-var config = require('./index');
 var db = require('./connection');
 var bcrypt = require('bcrypt-nodejs');
 var entityHelper = require('../lib/entityHelper');
 var token = require('../config/generateToken');
+var crypto = require('crypto');
 
 var User;
 db.getInstance(function(p_db) {
@@ -26,6 +26,8 @@ exports.createUser = async (req, res, next) => {
                 photo: null,
                 accepted : false,
                 newUser : true,
+                referralCode : crypto.randomBytes(2).toString('hex'),
+                referredFrom : null,
                 credits : 200,
                 devices : [],
                 plan : {},
@@ -82,7 +84,7 @@ exports.loginUser = async (req, res, next) => {
         if(user && user.password && bcrypt.compareSync(password, user.password)){
             return res.status(200).json({ token : token.generateAccessToken(user._id)});
         }else{
-            return res.status(400).json({message : "user not found" });
+            return res.status(400).json({message : "invalid email or password" });
         }
     }else{
         return res.status(400).json({message : "invalid parameters" });
