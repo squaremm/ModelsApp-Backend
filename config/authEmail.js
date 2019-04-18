@@ -34,6 +34,7 @@ exports.createUser = async (req, res, next) => {
                 plan : {},
                 isAcceptationPending : true,
                 isEmailAcceptationPending : true,
+                temporaryPassword : null,
                 loginTypes : [],
                 confirmHash : crypto.randomBytes(10).toString('hex')
             };
@@ -44,7 +45,10 @@ exports.createUser = async (req, res, next) => {
                     return res.status(400).json({message :  err });
                 }else{  
                     await sendGrid.sendConfirmAccountEmail(newUser, req);
-                    return res.status(200).json({ token : token.generateAccessToken(newUser._id)});
+                    return res.status(200).json({ 
+                        isChangePasswordRequired: Boolean(newUser.temporaryPassword && bcrypt.compareSync(password, newUser.temporaryPassword)),
+                        token : token.generateAccessToken(newUser._id)
+                    });
                 }
                 });
         }else {
@@ -85,8 +89,14 @@ exports.loginUser = async (req, res, next) => {
     if(email && emailRegexp.test(email) &&  password){
         
         var user = await User.findOne({ email:  email});
-        if(user && user.password && bcrypt.compareSync(password, user.password)){
-            return res.status(200).json({ token : token.generateAccessToken(user._id)});
+        
+        var isTempPassword = Boolean(user.temporaryPassword && bcrypt.compareSync(password, user.temporaryPassword)); //user has temporary password so he forgot his current one
+        if(user && user.password && (bcrypt.compareSync(password, user.password) 
+            || isTempPassword )){ 
+            return res.status(200).json({ 
+                isChangePasswordRequired: isTempPassword,
+                token : token.generateAccessToken(user._id)
+            });
         }else{
             return res.status(400).json({message : "invalid email or password" });
         }
