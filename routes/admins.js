@@ -274,16 +274,7 @@ module.exports = function(app) {
   
   app.get('/api/admin/users/pending', (req, res) => {
     User.find({ isAcceptationPending: true }).toArray(async function (err, users) {
-      res.status(200).json(users.map(x=> { 
-        return {
-          id: x._id,
-          photo: x.photo,
-          email: x.email,
-          phone: x.phone,
-          birthDate: x.birthDate,
-          instagram: x.instagram
-        }
-    }));
+      res.status(200).json(users);
     });
   });
   app.get('/api/admin/users/offerPosts', (req,res) =>{
