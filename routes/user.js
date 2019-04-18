@@ -2,6 +2,9 @@ var db = require('../config/connection');
 var middleware = require('../config/authMiddleware');
 var apn = require('apn');
 var moment = require('moment');
+var crypto = require('crypto');
+var sendGrid = require('../lib/sendGrid');
+var bcrypt = require('bcrypt-nodejs');
 
 var apnProvider = new apn.Provider({
   production: false,
@@ -201,7 +204,73 @@ module.exports = function(app) {
       res.json(full);
     });
   });
+  app.get('/api/user/:id/confirm/:hash', async (req, res) => {
+    var id = parseInt(req.params.id);
+    var hash = req.params.hash;
+    if(id && hash){
+      User.findOneAndUpdate({ _id : id, isEmailAcceptationPending: true, confirmHash : hash }, 
+        { $set : { isEmailAcceptationPending : false, confirmHash: null } },
+        {new: true}
+        )
+        .then((user) => {
+          if(user && user.value){
+            res.status(200).json({message: 'Your account has been accepted'});
+          }else{
+            res.status(404).json({message: 'Not found'});
+          }
+        })
+        .catch((err) => {
+  
+        });
+    }else{
+      res.status(400).json({message: 'invalid parameters'});
+    }
+  });
+
+  app.get('/api/user/:id/forgotPassword', async (req,res) => {
+    var id = parseInt(req.params.id);
+    if(id){
+      var temporaryPassword = crypto.randomBytes(2).toString('hex');
+      User.findOneAndUpdate({_id:  id }, 
+        { $set: { temporaryPassword : bcrypt.hashSync(temporaryPassword, bcrypt.genSaltSync(8), null) } }, 
+        { new: true, returnOriginal: false } )
+        .then(async (user) => {
+          await sendGrid.sendForgotPasswordEmail(temporaryPassword, user.value);
+          res.status(200).json({message: 'check your email'});
+        })
+        .catch((err) => {
+          res.status(404).json({message: 'user not found'});
+        });
+    }else{
+      res.status(400).json({message: 'invalid parameters'});
+    }
+  });
+  //change password after login with temporary password
+  //body: password, confirmPassword, temporaryPassword
+  app.post('/api/user/changePassword', middleware.isAuthorized, async (req, res) => {
+    var user = await req.user;
+    if(user){
+      var password = req.body.password;
+      var confirmPassword = req.body.confirmPassword;
+      if(password && confirmPassword && password == confirmPassword){
+        User.findOneAndUpdate({_id: user._id }, 
+          { $set: { temporaryPassword : null, password : bcrypt.hashSync(password, bcrypt.genSaltSync(8), null) } }, 
+          { new: true, returnOriginal: false } )
+          .then((user) => {
+            return res.status(200).json({message: "password has been updated"});
+          })
+          .catch((err) => {
+            res.status(404).json({message: 'user not found'});
+          });
+      }else{
+        res.status(400).json({message: 'invalid parameters'});
+      }
+    }else{
+      res.status(400).json({message: 'User not authorize'});
+    }
+  });
 };
+
 
 
 function editUser(id, newUser, res){
