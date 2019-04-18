@@ -156,6 +156,30 @@ module.exports = function(app) {
       }
     });
   });
+  //delete booking slot 
+  app.delete('/api/place/:id/intervals',function(req,res){
+    var id = parseInt(req.params.id);
+    if(req.body.id){
+      Interval.updateOne({place:id,"intervals.id":req.body.id},{$pull:{intervals:{id:req.body.id}}},function(err,data){
+        if(err) {
+              res.status(500);
+            res.json({message:"Not deleted"});
+            }else{
+              res.json({message:"deleted"});
+            } 
+      });
+    }else{
+      Interval.deleteOne({place:id},function(err,deleted){
+        if(err) {
+          res.status(500);
+        res.json({message:"Not deleted"});
+        }else{
+          res.json({message:"deleted"});
+        }
+      })
+    } 
+
+  });
 
   // Create the Booking Intervals entity
   app.post('/api/place/:id/intervals', function (req, res) {
@@ -172,12 +196,24 @@ module.exports = function(app) {
         if (err) console.log(err);
         interval._id = seq.value.seq;
 
-        Place.findOneAndUpdate({_id: id}, {$set: {intervals: seq.value.seq}}, function (err, place) {
-          if (!place.value) {
+        Place.find({_id: id},  function (err, place) {
+
+          if (!place) {
             res.json({message: "No such place "});
           } else {
-            Interval.insertOne(interval);
-            res.json({message: "Booking intervals are added"});
+            Interval.find({place:id},function(err,data){
+            if(data){
+              Interval.deleteOne({place:id},function(err,doc){
+                if(err) res.status(400).send({message:"errror"});
+                Interval.insertOne(interval);
+               res.json({message: "Booking intervals are added"});
+              })
+            }else{
+              Interval.insertOne(interval);
+              res.json({message: "1st Booking intervals are added"});
+            }
+            })
+            
           }
         })
       }
@@ -187,14 +223,45 @@ module.exports = function(app) {
   // Get Booking Intervals for the specific place
   app.get('/api/place/:id/intervals', function (req, res) {
     var id = parseInt(req.params.id);
-
-    Interval.findOne({place: id}, function (err, interval) {
-      if (!interval) {
-        res.json({message: "No such intervals"});
-      } else {
-        res.json(interval);
+      if(req.body.id){
+       Interval.aggregate(
+          [
+            {
+              $match: {
+                  place:id,"intervals.id":req.body.id
+              }
+            },
+            {
+              $addFields: {
+                intervals:{
+                    $filter:{
+                      input:"$intervals",
+                      as:"sp",
+                      cond:{$eq:["$$sp.id",req.body.id]}  
+                    }
+                  }
+              }
+            },
+        
+          ]).toArray(function(err, docs) {
+            if (err) {
+              res.json({message: "No such intervals"});
+            } else {
+              res.json(docs);
+            }
+      })
+           
       }
-    })
+      else{
+        Interval.findOne({place: id}, function (err, interval) {
+          if (!interval) {
+            res.json({message: "No such intervals"});
+          } else {
+            res.json(interval);
+          }
+        })
+      }
+    
   });
 
   // Add offer to the booking
@@ -244,7 +311,6 @@ module.exports = function(app) {
       newBooking.closed = false;
       newBooking.claimed = false;
       newBooking.offers = [];
-      newBooking.offerActions = [];
 
       var minOffer;
       var minOfferPrice = 0;
@@ -260,12 +326,14 @@ module.exports = function(app) {
       }
 
       Interval.findOne({place: id}, function (err, interval) {
+        console.log(interval.intervals[intervalNum])
         if (!interval) {
           res.status(500);
           res.json({message: "No intervals for this place"});
         } else {
-          newBooking.startTime = interval.intervals[intervalNum]['start'];
-          newBooking.endTime = interval.intervals[intervalNum]['end'];
+          newBooking.startTime = interval.intervals[intervalNum]["start"];
+          newBooking.endTime = interval.intervals[intervalNum]["end"];
+          newBooking.slot = interval.intervals[intervalNum]["slot"];
 
           Booking.findOne({
             place: id,
@@ -288,7 +356,7 @@ module.exports = function(app) {
                   if (!place) {
                     res.json({message: "No such place"});
                   } else {
-                    if (books.length >= place.slots) {
+                    if (books.length >= newBooking.slot) {
                       res.status(500);
                       res.json({message: "Sorry, all slots are booked for this time"});
                     } else {
@@ -320,10 +388,7 @@ module.exports = function(app) {
                           }
                         });
                       });
-                      // } else {
-                      //   res.status(500);
-                      //   res.json({ message: "The time has gone" });
-                      // }
+                     
                     }
                   }
                 });
