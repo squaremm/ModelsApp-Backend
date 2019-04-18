@@ -3,6 +3,7 @@ var bcrypt = require('bcrypt-nodejs');
 var entityHelper = require('../lib/entityHelper');
 var token = require('../config/generateToken');
 var crypto = require('crypto');
+var sendGrid = require('../lib/sendGrid');
 
 var User;
 db.getInstance(function(p_db) {
@@ -32,14 +33,17 @@ exports.createUser = async (req, res, next) => {
                 devices : [],
                 plan : {},
                 isAcceptationPending : true,
-                loginTypes : []
+                isEmailAcceptationPending : true,
+                loginTypes : [],
+                confirmHash : crypto.randomBytes(10).toString('hex')
             };
 
             newUser.loginTypes.push('email');
-            User.insertOne( newUser, function(err, user) {
+            User.insertOne( newUser, async function(err, user) {
                 if (err) {
                     return res.status(400).json({message :  err });
-                }else{
+                }else{  
+                    await sendGrid.sendConfirmAccountEmail(newUser, req);
                     return res.status(200).json({ token : token.generateAccessToken(newUser._id)});
                 }
                 });
