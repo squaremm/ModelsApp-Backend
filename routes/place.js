@@ -44,6 +44,7 @@ module.exports = function(app) {
     place.bookings = [];
     place.offers = [];
     place.posts = [];
+    place.notificationRecivers = [];
 
     // Make all fields required
     if(!place.name || !place.type || !place.address || !place.photos || !place.location.coordinates ||
@@ -156,7 +157,36 @@ module.exports = function(app) {
       }
     });
   });
+  app.post('/api/place/:id/notificationRecivers', async (req, res) => {
+    var id = parseInt(req.params.id);
+    if(id){
+      Place.findOneAndUpdate({ _id : id },
+        { $set: { notificationRecivers : req.body.recivers } },
+        { new: true })
+        .then((place) => {
+          res.status(200).json(place.notificationRecivers);
+        })
+        .catch((err) => {
 
+        });
+    }else{
+      res.status(404).json({message: 'place not found' });
+    }
+  })
+  app.get('/api/place/:id/notificationRecivers', async (req, res) => {
+    var id = parseInt(req.params.id);
+    if(id){
+      Place.findOne({ _id : id })
+        .then((place) => {
+          res.status(200).json(place.notificationRecivers);
+        })
+        .catch((err) => {
+
+        });
+    }else{
+      res.status(404).json({message: 'place not found' });
+    }
+  });
   // Get all Places with limit and offset
   app.get('/api/place/:limit/:offset', function (req, res) {
     var limit = parseInt(req.params.limit);
@@ -188,6 +218,7 @@ module.exports = function(app) {
       }
     });
   });
+ 
 };
 
 async function getMoreData(places, res) {

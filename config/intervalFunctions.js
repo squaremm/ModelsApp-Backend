@@ -1,6 +1,7 @@
 var db = require('../config/connection');
 var apn = require('apn');
 var moment = require('moment');
+var sendGrid = require('../lib/sendGrid');
 
 var apnProvider = new apn.Provider({
   production: false,
@@ -23,10 +24,16 @@ async function bookingClosedNotification(devices) {
 
 exports.checkBookingExpired = function(db){
     setInterval(() => {
-        intervalFunc(db);
+      intervalFuncCheckBookingExpired(db);
     }, 60000);
   }
-function intervalFunc(db) {
+  exports.sendReportBookingEmail = function(db){
+    setInterval(() => {
+      intervalFuncSendReportBookingEmail(db);
+    }, 900000);
+  }
+  
+function intervalFuncCheckBookingExpired (db) {
     console.log('start interval function');
     db.getInstance(function (p_db) {
         User = p_db.collection('users');
@@ -57,4 +64,37 @@ function intervalFunc(db) {
                     
             });
     });
+}
+function intervalFuncSendReportBookingEmail (db) {
+  console.log('start interval function');
+  db.getInstance(function (p_db) {
+      Booking = p_db.collection('bookings'); 
+      Place = p_db.collection('places');
+      User = p_db.collection('users');
+
+      var currentHour = parseInt(moment().format('hh'));
+      var currentMinute = parseInt(moment().format('mm'));
+      if(currentHour == 22 && currentMinute <= 20){
+        //retrive all users -> may be need to send push notification
+        User.find({ accepted: true }).toArray(async (userError, users) => {
+        Place.find({ }).toArray(async (error, places) => {
+          places.forEach(async (place) => {
+            if(place.notificationRecivers && place.notificationRecivers.length > 0){
+              var today = moment().format('DD-MM-YYYY');
+             await Booking.find({ creationDate: {$eq: today}, place: place._id }).toArray(async (error, bookings) => {
+                var listToSend = [];
+                await bookings.forEach(async (booking) => {
+                  var user = users.find(x=>x._id == booking.user);
+                  listToSend.push(`booking date: ${ booking.date }, time:  ${booking.startTime }-${booking.endTime }, user:  ${user.email }, ${user.name } ${user.surname } `);
+                });
+                place.notificationRecivers.forEach(async (reciver) => {
+                 await sendGrid.sendBookingReport(reciver.email, listToSend, place);
+                });
+              });
+            }
+          });
+        });
+      });
+      }
+  });
 }
