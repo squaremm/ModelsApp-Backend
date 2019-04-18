@@ -2,6 +2,7 @@ var db = require('../config/connection');
 var middleware = require('../config/authMiddleware');
 var apn = require('apn');
 var moment = require('moment');
+var crypto = require('crypto');
 
 var apnProvider = new apn.Provider({
   production: false,
@@ -201,28 +202,40 @@ module.exports = function(app) {
       res.json(full);
     });
   });
+  app.get('/api/user/:id/confirm/:hash', async (req, res) => {
+    var id = parseInt(req.params.id);
+    var hash = req.params.hash;
+    if(id && hash){
+      User.findOneAndUpdate({ _id : id, isEmailAcceptationPending: true, confirmHash : hash }, 
+        { $set : { isEmailAcceptationPending : false, confirmHash: null } },
+        {new: true}
+        )
+        .then((user) => {
+          if(user && user.value){
+            res.status(200).json({message: 'Your account has been accepted'});
+          }else{
+            res.status(404).json({message: 'Not found'});
+          }
+        })
+        .catch((err) => {
+  
+        });
+    }else{
+      res.status(400).json({message: 'invalid parameters'});
+    }
+  });
+
+  app.get('/api/user/:id/forgotpassword', async (req,res) => {
+    var id = parseInt(req.params.id);
+    if(id){
+      User.findOneAndUpdate({_id:  id }, { $set: { temporaryPassword : crypto.randomBytes(4).toString('hex') } }, {new: true})
+    }else{
+      res.status(400).json({message: 'invalid parameters'});
+    }
+  });
 };
 
-app.get('api/user/:id/confirm/:hash', async (req, res) => {
-  var id = parseInt(req.params.id);
-  var hash = req.params.hash;
-  if(id && hash){
-    User.findOneAndUpdate({ _id : id, isEmailAcceptationPending: true, confirmHash : hash }, 
-      { $set : { isEmailAcceptationPending : false, confirmHash: null } })
-      .then((user) => {
-        if(user && user.value){
-          req.status(200).json({message: 'Your emmail has been accepted'});
-        }else{
-          req.status(404).json({message: 'Not found'});
-        }
-      })
-      .catch((err) => {
 
-      });
-  }else{
-    req.status(400).json({message: 'invalid parameters'});
-  }
-});
 
 function editUser(id, newUser, res){
   User.findOne({ _id: id }, function (err, user) {
