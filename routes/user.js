@@ -269,6 +269,30 @@ module.exports = function(app) {
       res.status(400).json({message: 'User not authorize'});
     }
   });
+  app.post('/api/user/changeCurrentPassword', middleware.isAuthorized, async (req, res) => {
+    var user = await req.user;
+    if(user){
+      var password = req.body.password;
+      var newPassword = req.body.newPassword;
+      var newConfirmPassword = req.body.newConfirmPassword;
+      if(password && newPassword && newConfirmPassword && newPassword == newConfirmPassword && bcrypt.compareSync(password, user.password)){
+          
+        User.findOneAndUpdate({_id: user._id }, 
+          { $set: { password : bcrypt.hashSync(newPassword, bcrypt.genSaltSync(8), null) } }, 
+          { new: true, returnOriginal: false } )
+          .then((user) => {
+            return res.status(200).json({message: "password has been updated"});
+          })
+          .catch((err) => {
+            res.status(404).json({message: 'user not found'});
+          });
+      }else{
+        res.status(400).json({message: 'invalid parameters'});
+      }
+    }else{
+      res.status(400).json({message: 'User not authorize'});
+    }
+  });
 };
 
 
