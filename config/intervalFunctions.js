@@ -34,7 +34,7 @@ exports.checkBookingExpired = function(db){
   }
   
 function intervalFuncCheckBookingExpired (db) {
-    console.log('start interval function');
+    console.log(`start interval function bookingExpired, at ${moment()}`);
     db.getInstance(function (p_db) {
         User = p_db.collection('users');
         Booking = p_db.collection('bookings'); 
@@ -66,7 +66,7 @@ function intervalFuncCheckBookingExpired (db) {
     });
 }
 function intervalFuncSendReportBookingEmail (db) {
-  console.log('start interval function');
+  console.log(`start interval function reportSend, at ${moment()}`);
   db.getInstance(function (p_db) {
       Booking = p_db.collection('bookings'); 
       Place = p_db.collection('places');
