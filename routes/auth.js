@@ -136,24 +136,7 @@ module.exports = function (app) {
       })(req, res, next);
   })
 
-  // user login
-  app.post('/api/auth/user/login', function (req, res, next) {
-    passport.authenticate('user-login', { session: false, failWithError: true },
-      async function (err, user) {
-        user = await user;
-        if (err) return res.json({ message: err.message, token: null });
-        if (!user) {
-          return res.json({ message: req.authMessage, token: null });
-        } else {
-          var accessToken = token.generateAccessToken(user._id);
-          if (!accessToken) {
-            res.json({ message: "Authorization failed", token: null });
-          } else {
-            res.json({ message: "Authorization completed", token: accessToken });
-          }
-        }
-      })(req, res, next);
-  });
+
   
    app.post('/api/auth/user/signin', authEmail.createUser);
    app.post('/api/auth/user/login', authEmail.loginUser);
