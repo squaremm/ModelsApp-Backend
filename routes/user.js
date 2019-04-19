@@ -227,11 +227,11 @@ module.exports = function(app) {
     }
   });
 
-  app.get('/api/user/:id/forgotPassword', async (req,res) => {
-    var id = parseInt(req.params.id);
-    if(id){
+  app.post('/api/user/forgotPassword', async (req,res) => {
+    var email = req.body.email;
+    if(email){
       var temporaryPassword = crypto.randomBytes(2).toString('hex');
-      User.findOneAndUpdate({_id:  id }, 
+      User.findOneAndUpdate({email:  email }, 
         { $set: { temporaryPassword : bcrypt.hashSync(temporaryPassword, bcrypt.genSaltSync(8), null) } }, 
         { new: true, returnOriginal: false } )
         .then(async (user) => {
