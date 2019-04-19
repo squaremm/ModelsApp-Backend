@@ -311,6 +311,7 @@ module.exports = function(app) {
       newBooking.closed = false;
       newBooking.claimed = false;
       newBooking.offers = [];
+      newBooking.offerActions = [];
 
       var minOffer;
       var minOfferPrice = 0;
