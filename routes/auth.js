@@ -153,4 +153,7 @@ module.exports = function (app) {
         }
       })(req, res, next);
   });
+  
+   app.post('/api/auth/user/signin', authEmail.createUser);
+   app.post('/api/auth/user/login', authEmail.loginUser);
 };
