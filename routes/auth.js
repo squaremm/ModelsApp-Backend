@@ -2,6 +2,7 @@ var passport = require('passport');
 var db = require('../config/connection');
 var token = require('../config/generateToken');
 var isAuthorized = require('../config/authMiddleware').isAuthorized;
+var authEmail = require('../config/authEmail');
 
 var User;
 db.getInstance(function (p_db) {
@@ -153,4 +154,6 @@ module.exports = function (app) {
         }
       })(req, res, next);
   });
+   app.post('/api/auth/user/signin', authEmail.createUser);
+   app.post('/api/auth/user/login', authEmail.loginUser);
 };
