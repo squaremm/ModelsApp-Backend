@@ -373,7 +373,7 @@ module.exports = function(app) {
                           } else {
                             if (user.credits < minOfferPrice) {
                               res.status(402);
-                              res.json({message: "Sorry, you have not enough credits."});
+                              res.json({message: "Sorry, you have not enough credits to book place and take the cheapeste."});
                             } else {
                               newBooking.payed = parseInt(minOfferPrice / 2);
 
