@@ -34,6 +34,8 @@ require('./routes/booking')(app);
 require('./routes/place')(app);
 require('./routes/statistics')(app);
 require('./routes')(app);
+require('./Views/htmlViews')(app);
+
 var functions = require('./config/intervalFunctions');
 
 functions.checkBookingExpired(db);

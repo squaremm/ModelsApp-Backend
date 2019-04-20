@@ -2,6 +2,7 @@ var db = require('../config/connection');
 var middleware = require('../config/authMiddleware');
 var apn = require('apn');
 var moment = require('moment');
+var sendgrid = require('../lib/sendGrid');
 
 var apnProvider = new apn.Provider({
   production: false,
@@ -63,17 +64,18 @@ db.getInstance(function (p_db) {
 
 module.exports = function(app) {
 
-  app.put(['/api/admin/model/:id/accept'], function (req, res) {
+  app.put(['/api/admin/model/:id/accept'], async function (req, res) {
     var id = parseInt(req.params.id);
     var level = parseInt(req.body.level) || 4;
 
-    User.findOneAndUpdate({ _id: id }, { $set: { accepted: true, level: level, isAcceptationPending: false }},{new: true}, function (err, updated) {
+    User.findOneAndUpdate({ _id: id }, { $set: { accepted: true, level: level, isAcceptationPending: false }},{new: true}, async function (err, updated) {
       if(err) res.json({ message: "error" });
       if(updated.value !== undefined && updated.value !== null){
         var devices = updated.value.devices;
 
         userAcceptNotification(devices)
-        .then(x=>{
+        .then(async (x) =>{
+          await sendgrid.sendUserAcceptedMail(updated.value.email, req);
           res.json({ message: "The model has been accepted" });
         })
         .catch(err =>{
