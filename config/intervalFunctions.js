@@ -7,12 +7,17 @@ var apnProvider = new apn.Provider({
   production: false,
 });
 
-async function bookingClosedNotification(devices) {
+async function bookingClosedNotification(devices, payed, placeName) {
     var note = new apn.Notification();
     note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
     note.badge = 1;
     note.alert = `\uD83D\uDCE7 \u2709 Booking closed!`;
-    note.payload = { message: `Your booking has been closed you lost change to get points`, pushType: 'bookingClosed' };
+    note.payload = { 
+      message: `Your booking has been closed you lost change to get points`,
+      pushType: 'bookingClosed', 
+      bookingCredits: payed,
+      bookingName : placeName
+     };
   
     devices.forEach(async (device) => {
         await apnProvider.send(note, device);
@@ -38,7 +43,8 @@ function intervalFuncCheckBookingExpired (db) {
     db.getInstance(function (p_db) {
         User = p_db.collection('users');
         Booking = p_db.collection('bookings'); 
-        
+        Place = p_db.collection('places');
+
         //retrive all users -> may be need to send push notification
         User.find({ accepted: true , bookings: { $gt: 0 } }).toArray(async (userError, users) => {
                 //find all bookings that are not closed yet
@@ -55,7 +61,8 @@ function intervalFuncCheckBookingExpired (db) {
                                         var user = users.find(user => user._id == booking.user);
                                         if(user){
                                             console.log('send notification');
-                                          await bookingClosedNotification(user.devices);
+                                          var place = await Place.findOne({_id: booking.place});
+                                          await bookingClosedNotification(user.devices, booking.payed, place.name);
                                         }
                                     });
                             }
