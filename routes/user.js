@@ -335,7 +335,7 @@ module.exports = function(app) {
       if(user){
       var form = new multiparty.Form();
       form.parse(req, async function (err, fields, files) {
-        files = files.null;
+        files = files.images;
         for (file of files) {
           await imageUplader.uploadImage(file.path, 'users', user._id)
             .then(async (newImage) =>{

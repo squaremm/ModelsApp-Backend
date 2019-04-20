@@ -506,7 +506,7 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
       if(offer){
       var form = new multiparty.Form();
       form.parse(req, async function (err, fields, files) {
-        files = files.null;
+        files = files.images;
         for (file of files) {
           await imageUplader.uploadImage(file.path, 'offers', offer._id)
             .then(async (newImage) =>{
