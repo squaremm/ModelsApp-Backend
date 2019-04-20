@@ -10,7 +10,7 @@ db.getInstance(function (p_db) {
 
 module.exports = function (app) {
     app.get('/accept', async (req, res) => {
-        var filePath = path.join(__dirname, '../htmltemplates/userAccepted.html')
+        var filePath = path.join(__dirname, '../htmlTemplates/userAccepted.html')
         res.sendFile(filePath);
     });
 }
