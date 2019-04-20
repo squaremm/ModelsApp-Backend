@@ -5,6 +5,8 @@ var moment = require('moment');
 var crypto = require('crypto');
 var sendGrid = require('../lib/sendGrid');
 var bcrypt = require('bcrypt-nodejs');
+var imageUplader = require('../lib/imageUplader');
+var multiparty = require('multiparty');
 
 var apnProvider = new apn.Provider({
   production: false,
@@ -204,6 +206,7 @@ module.exports = function(app) {
       res.json(full);
     });
   });
+
   app.get('/api/user/:id/confirm/:hash', async (req, res) => {
     var id = parseInt(req.params.id);
     var hash = req.params.hash;
@@ -291,6 +294,84 @@ module.exports = function(app) {
       }
     }else{
       res.status(400).json({message: 'User not authorize'});
+    }
+  });
+  app.delete('/api/user/:id/images', async (req,res) => {
+    var id = parseInt(req.params.id);
+    var imageId = req.body.imageId;
+    if(id){
+      var user = await User.findOne({ _id : id });
+      if(user){
+        var image = user.images.find( x=>x.id == imageId);
+        if(image){
+          await imageUplader.deleteImage(image.cloudinaryId)
+          .then(() => {
+            User.findOneAndUpdate({_id: id}, { $pull: { 'images' : { 'id': image.id } }})
+              .then(() => {
+                res.status(200).json({message: 'ok'});
+              })
+              .catch((err) => {
+                console.log(err);
+              })
+          })
+          .catch((err) => {
+            res.status(400).json({message : err });
+        });
+      }else{
+        res.status(404).json({message : "Image is for the wrong user"});
+      }
+      }else{
+        res.status(404).json({message : "user not found"});
+      }
+    }else{
+      res.status(404).json({message : "invalid parameters"});
+    }
+    
+  });
+  app.post('/api/user/:id/images', async (req,res) => {
+    var id = parseInt(req.params.id);
+    if(id){
+      var user = await User.findOne({ _id : id });
+      if(user){
+      var form = new multiparty.Form();
+      form.parse(req, async function (err, fields, files) {
+        files = files.null;
+        for (file of files) {
+          await imageUplader.uploadImage(file.path, 'users', user._id)
+            .then(async (newImage) =>{
+              await User.findOneAndUpdate({ _id: id }, { $push: { images: newImage } })
+            })
+            .catch((err) => {
+              console.log(err);
+            });
+        }
+        res.status(200).json({message: "ok"});
+      });
+    }else{
+      res.status(404).json({message : "offer not found" });
+    }
+    }else{
+      res.status(404).json({message : "invalid parameters"});
+      }
+  });
+  app.put('/api/user/:id/images/:imageId/main', async (req,res) => {
+    var id = parseInt(req.params.id);
+    var imageId = req.params.imageId;
+    if(id && imageId){
+      var user = await User.findOne({ _id : id });
+      if(user && user.images && user.images.find( x=>x.id == imageId)){
+        await User.findOneAndUpdate({ _id : id }, {$set : { 'images.$[].isMainImage': false } } );
+        var image = user.images.find( x=>x.id == imageId);
+        await User.findOneAndUpdate({ _id : id }, 
+          { $set : { mainImage : image.url, 'images.$[t].isMainImage' : true }},
+          { arrayFilters: [ {"t.id": imageId  } ] }
+          )
+          res.status(200).json({message: "ok"});
+      }else{
+        res.status(404).json({message : "user not found"});
+      }
+    }else{
+      res.status(404).json({message : "invalid parameters"});
     }
   });
 };

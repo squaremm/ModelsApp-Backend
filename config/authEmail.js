@@ -36,7 +36,9 @@ exports.createUser = async (req, res, next) => {
                 isEmailAcceptationPending : true,
                 temporaryPassword : null,
                 loginTypes : [],
-                confirmHash : crypto.randomBytes(10).toString('hex')
+                confirmHash : crypto.randomBytes(10).toString('hex'),
+                images: [],
+                mainImage: null
             };
 
             newUser.loginTypes.push('email');

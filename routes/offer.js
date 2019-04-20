@@ -1,6 +1,8 @@
 var db = require('../config/connection');
 var middleware = require('../config/authMiddleware');
 var moment = require('moment');
+var imageUplader = require('../lib/imageUplader');
+var multiparty = require('multiparty');
 
 var User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
 db.getInstance(function (p_db) {
@@ -161,6 +163,8 @@ module.exports = function(app) {
       offer.post = null;
       offer.closed = false;
       offer.level = parseInt(req.body.level) || 1;
+      offer.images = [];
+      offer.mainImage = null;
 
       User.findOne({ _id: offer.user }, { projection: { credits: 1 }}, function (err, user) {
         if (!user) {
@@ -461,5 +465,84 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
     OfferPost.find({offer: id}).toArray(function (err, posts) {
       res.json(posts);
     });
+  });
+
+  app.delete('/api/offer/:id/images', async (req,res) => {
+    var id = parseInt(req.params.id);
+    var imageId = req.body.imageId;
+    if(id){
+      var offer = await Offer.findOne({ _id : id });
+      if(offer){
+        var image = offer.images.find( x=>x.id == imageId);
+        if(image){
+          await imageUplader.deleteImage(image.cloudinaryId)
+          .then(() => {
+            Offer.findOneAndUpdate({_id: id}, { $pull: { 'images' : { 'id': image.id } }})
+              .then(() => {
+                res.status(200).json({message: 'ok'});
+              })
+              .catch((err) => {
+                console.log(err);
+              })
+          })
+          .catch((err) => {
+            res.status(400).json({message : err });
+        });
+      }else{
+        res.status(404).json({message : "Image is for the wrong offer"});
+      }
+      }else{
+        res.status(404).json({message : "offer not found"});
+      }
+    }else{
+      res.status(404).json({message : "invalid parameters"});
+    }
+    
+  });
+  app.post('/api/offer/:id/images', async (req,res) => {
+    var id = parseInt(req.params.id);
+    if(id){
+      var offer = await Offer.findOne({ _id : id });
+      if(offer){
+      var form = new multiparty.Form();
+      form.parse(req, async function (err, fields, files) {
+        files = files.null;
+        for (file of files) {
+          await imageUplader.uploadImage(file.path, 'offers', offer._id)
+            .then(async (newImage) =>{
+              await Offer.findOneAndUpdate({ _id: id }, { $push: { images: newImage } })
+            })
+            .catch((err) => {
+              console.log(err);
+            });
+        }
+        res.status(200).json({message: "ok"});
+      });
+    }else{
+      res.status(404).json({message : "offer not found" });
+    }
+    }else{
+      res.status(404).json({message : "invalid parameters"});
+      }
+  });
+  app.put('/api/offer/:id/images/:imageId/main', async (req,res) => {
+    var id = parseInt(req.params.id);
+    var imageId = req.params.imageId;
+    if(id && imageId){
+      var offer = await Offer.findOne({ _id : id });
+      if(offer && offer.images && offer.images.find( x=>x.id == imageId)){
+        await Offer.findOneAndUpdate({ _id : id }, {$set : { 'images.$[].isMainImage': false } } );
+        var image = offer.images.find( x=>x.id == imageId);
+        await Offer.findOneAndUpdate({ _id : id }, 
+          { $set : { mainImage : image.url, 'images.$[t].isMainImage' : true }},
+          { arrayFilters: [ {"t.id": imageId  } ] }
+          )
+          res.status(200).json({message: "ok"});
+      }else{
+        res.status(404).json({message : "offer not found"});
+      }
+    }else{
+      res.status(404).json({message : "invalid parameters"});
+    }
   });
 };

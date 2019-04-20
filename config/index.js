@@ -9,5 +9,9 @@ module.exports = {
   googleClientSecret: process.env.googleClientSecret || '',
   facebookClientID: process.env.facebookClientID || '',
   facebookClientSecret: process.env.facebookClientSecret || '',
-  sendGridKey: process.env.SENDGRID_KEY || ''
+  sendGridKey: process.env.SENDGRID_KEY || '',
+  cloudinaryUrl: process.env.CLOUDINARY_URL || '',
+  cloudinaryName: process.env.CLOUDINARY_NAME || '',
+  cloudinaryKey: process.env.CLOUDINARY_KEY || '',
+  cloudinarySecret: process.env.CLOUDINARY_SECRET || '',
 };
