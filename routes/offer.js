@@ -162,7 +162,7 @@ module.exports = function(app) {
       offer.photo = req.body.photo;
       offer.post = null;
       offer.closed = false;
-      offer.level = parseInt(req.body.level) || 1;
+      offer.level = parseInt(req.body.level) || 4;
       offer.images = [];
       offer.mainImage = null;
 
@@ -170,9 +170,6 @@ module.exports = function(app) {
         if (!user) {
           res.json({ message: "No such user" });
         } else {
-          if (user.credits < offer.price) {
-            res.json({ message: "Not enough credits" });
-          } else {
             Counter.findOneAndUpdate(
               {_id: "offerid"},
               {$inc: {seq: 1}},
@@ -192,7 +189,6 @@ module.exports = function(app) {
                 });
               }
             );
-          }
         }
       });
     } else {
