@@ -5,8 +5,10 @@
     "start": "node app.js"
   },
   "dependencies": {
+    "@sendgrid/mail": "^6.3.1",
     "apn": "^2.2.0",
     "bcrypt-nodejs": "0.0.3",
+    "cloudinary": "^1.14.0",
     "cookie-session": "^2.0.0-beta.3",
     "cors": "^2.8.5",
     "dotenv": "^6.2.0",
@@ -15,6 +17,7 @@
     "jsonwebtoken": "^8.4.0",
     "moment": "^2.23.0",
     "mongodb": "^3.1.10",
+    "multiparty": "^4.2.1",
     "npm": "^6.5.0",
     "passport": "^0.4.0",
     "passport-facebook": "^2.1.1",

@@ -1,6 +1,8 @@
 var db = require('../config/connection');
 var middleware = require('../config/authMiddleware');
 var moment = require('moment');
+var imageUplader = require('../lib/imageUplader');
+var multiparty = require('multiparty');
 
 var User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
 db.getInstance(function (p_db) {
@@ -44,6 +46,9 @@ module.exports = function(app) {
     place.bookings = [];
     place.offers = [];
     place.posts = [];
+    place.notificationRecivers = [];
+    place.images = [];
+    place.mainImage = null;
 
     // Make all fields required
     if(!place.name || !place.type || !place.address || !place.photos || !place.location.coordinates ||
@@ -156,7 +161,36 @@ module.exports = function(app) {
       }
     });
   });
+  app.post('/api/place/:id/notificationRecivers', async (req, res) => {
+    var id = parseInt(req.params.id);
+    if(id){
+      Place.findOneAndUpdate({ _id : id },
+        { $set: { notificationRecivers : req.body.recivers } },
+        { new: true })
+        .then((place) => {
+          res.status(200).json(place.notificationRecivers);
+        })
+        .catch((err) => {
 
+        });
+    }else{
+      res.status(404).json({message: 'place not found' });
+    }
+  })
+  app.get('/api/place/:id/notificationRecivers', async (req, res) => {
+    var id = parseInt(req.params.id);
+    if(id){
+      Place.findOne({ _id : id })
+        .then((place) => {
+          res.status(200).json(place.notificationRecivers);
+        })
+        .catch((err) => {
+
+        });
+    }else{
+      res.status(404).json({message: 'place not found' });
+    }
+  });
   // Get all Places with limit and offset
   app.get('/api/place/:limit/:offset', function (req, res) {
     var limit = parseInt(req.params.limit);
@@ -187,6 +221,84 @@ module.exports = function(app) {
         res.json({ message: "Deleted" });
       }
     });
+  });
+  app.delete('/api/place/:id/images', async (req,res) => {
+    var id = parseInt(req.params.id);
+    var imageId = req.body.imageId;
+    if(id){
+      var place = await Place.findOne({ _id : id });
+      if(place){
+        var image = place.images.find( x=>x.id == imageId);
+        if(image){
+          await imageUplader.deleteImage(image.cloudinaryId)
+          .then(() => {
+            Place.findOneAndUpdate({_id: id}, { $pull: { 'images' : { 'id': image.id } }})
+              .then(() => {
+                res.status(200).json({message: 'ok'});
+              })
+              .catch((err) => {
+                console.log(err);
+              })
+          })
+          .catch((err) => {
+            res.status(400).json({message : err });
+        });
+      }else{
+        res.status(404).json({message : "Image is for the wrong place"});
+      }
+      }else{
+        res.status(404).json({message : "Place not found"});
+      }
+    }else{
+      res.status(404).json({message : "invalid parameters"});
+    }
+    
+  });
+  app.post('/api/place/:id/images', async (req,res) => {
+    var id = parseInt(req.params.id);
+    if(id){
+      var place = await Place.findOne({ _id : id });
+      if(place){
+      var form = new multiparty.Form();
+      form.parse(req, async function (err, fields, files) {
+        files = files.images;
+        for (file of files) {
+          await imageUplader.uploadImage(file.path, 'places', place._id)
+            .then(async (newImage) =>{
+              await Place.findOneAndUpdate({ _id: id }, { $push: { images: newImage } })
+            })
+            .catch((err) => {
+              console.log(err);
+            });
+        }
+        res.status(200).json({message: "ok"});
+      });
+    }else{
+      res.status(404).json({message : "Place not found" });
+    }
+    }else{
+    res.status(404).json({message : "invalid parameters"});
+      }
+  });
+  app.put('/api/place/:id/images/:imageId/main', async (req,res) => {
+    var id = parseInt(req.params.id);
+    var imageId = req.params.imageId;
+    if(id && imageId){
+      var place = await Place.findOne({ _id : id });
+      if(place && place.images && place.images.find( x=>x.id == imageId)){
+        await Place.findOneAndUpdate({ _id : id }, {$set : { 'images.$[].isMainImage': false } } );
+        var image = place.images.find( x=>x.id == imageId);
+        await Place.findOneAndUpdate({ _id : id }, 
+          { $set : { mainImage : image.url, 'images.$[t].isMainImage' : true }},
+          { arrayFilters: [ {"t.id": imageId  } ] }
+          )
+          res.status(200).json({message: "ok"});
+      }else{
+        res.status(404).json({message : "place not found"});
+      }
+    }else{
+      res.status(404).json({message : "invalid parameters"});
+    }
   });
 };
 

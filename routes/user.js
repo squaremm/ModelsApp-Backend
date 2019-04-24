@@ -2,6 +2,11 @@ var db = require('../config/connection');
 var middleware = require('../config/authMiddleware');
 var apn = require('apn');
 var moment = require('moment');
+var crypto = require('crypto');
+var sendGrid = require('../lib/sendGrid');
+var bcrypt = require('bcrypt-nodejs');
+var imageUplader = require('../lib/imageUplader');
+var multiparty = require('multiparty');
 
 var apnProvider = new apn.Provider({
   production: false,
@@ -201,7 +206,176 @@ module.exports = function(app) {
       res.json(full);
     });
   });
+
+  app.get('/api/user/:id/confirm/:hash', async (req, res) => {
+    var id = parseInt(req.params.id);
+    var hash = req.params.hash;
+    if(id && hash){
+      User.findOneAndUpdate({ _id : id, isEmailAcceptationPending: true, confirmHash : hash }, 
+        { $set : { isEmailAcceptationPending : false, confirmHash: null } },
+        {new: true}
+        )
+        .then((user) => {
+          if(user && user.value){
+            res.status(200).json({message: 'Your account has been accepted'});
+          }else{
+            res.status(404).json({message: 'Not found'});
+          }
+        })
+        .catch((err) => {
+  
+        });
+    }else{
+      res.status(400).json({message: 'invalid parameters'});
+    }
+  });
+
+  app.post('/api/user/forgotPassword', async (req,res) => {
+    var email = req.body.email;
+    if(email){
+      var temporaryPassword = crypto.randomBytes(2).toString('hex');
+      User.findOneAndUpdate({email:  email }, 
+        { $set: { temporaryPassword : bcrypt.hashSync(temporaryPassword, bcrypt.genSaltSync(8), null) } }, 
+        { new: true, returnOriginal: false } )
+        .then(async (user) => {
+          await sendGrid.sendForgotPasswordEmail(temporaryPassword, user.value);
+          res.status(200).json({message: 'check your email'});
+        })
+        .catch((err) => {
+          res.status(404).json({message: 'user not found'});
+        });
+    }else{
+      res.status(400).json({message: 'invalid parameters'});
+    }
+  });
+  //change password after login with temporary password
+  //body: password, confirmPassword, temporaryPassword
+  app.post('/api/user/changePassword', middleware.isAuthorized, async (req, res) => {
+    var user = await req.user;
+    if(user){
+      var password = req.body.password;
+      var confirmPassword = req.body.confirmPassword;
+      if(password && confirmPassword && password == confirmPassword){
+        User.findOneAndUpdate({_id: user._id }, 
+          { $set: { temporaryPassword : null, password : bcrypt.hashSync(password, bcrypt.genSaltSync(8), null) } }, 
+          { new: true, returnOriginal: false } )
+          .then((user) => {
+            return res.status(200).json({message: "password has been updated"});
+          })
+          .catch((err) => {
+            res.status(404).json({message: 'user not found'});
+          });
+      }else{
+        res.status(400).json({message: 'invalid parameters'});
+      }
+    }else{
+      res.status(400).json({message: 'User not authorize'});
+    }
+  });
+  app.post('/api/user/changeCurrentPassword', middleware.isAuthorized, async (req, res) => {
+    var user = await req.user;
+    if(user){
+      var password = req.body.password;
+      var newPassword = req.body.newPassword;
+      var newConfirmPassword = req.body.newConfirmPassword;
+      if(password && newPassword && newConfirmPassword && newPassword == newConfirmPassword && bcrypt.compareSync(password, user.password)){
+          
+        User.findOneAndUpdate({_id: user._id }, 
+          { $set: { password : bcrypt.hashSync(newPassword, bcrypt.genSaltSync(8), null) } }, 
+          { new: true, returnOriginal: false } )
+          .then((user) => {
+            return res.status(200).json({message: "password has been updated"});
+          })
+          .catch((err) => {
+            res.status(404).json({message: 'user not found'});
+          });
+      }else{
+        res.status(400).json({message: 'invalid parameters'});
+      }
+    }else{
+      res.status(400).json({message: 'User not authorize'});
+    }
+  });
+  app.delete('/api/user/:id/images', async (req,res) => {
+    var id = parseInt(req.params.id);
+    var imageId = req.body.imageId;
+    if(id){
+      var user = await User.findOne({ _id : id });
+      if(user){
+        var image = user.images.find( x=>x.id == imageId);
+        if(image){
+          await imageUplader.deleteImage(image.cloudinaryId)
+          .then(() => {
+            User.findOneAndUpdate({_id: id}, { $pull: { 'images' : { 'id': image.id } }})
+              .then(() => {
+                res.status(200).json({message: 'ok'});
+              })
+              .catch((err) => {
+                console.log(err);
+              })
+          })
+          .catch((err) => {
+            res.status(400).json({message : err });
+        });
+      }else{
+        res.status(404).json({message : "Image is for the wrong user"});
+      }
+      }else{
+        res.status(404).json({message : "user not found"});
+      }
+    }else{
+      res.status(404).json({message : "invalid parameters"});
+    }
+    
+  });
+  app.post('/api/user/:id/images', async (req,res) => {
+    var id = parseInt(req.params.id);
+    if(id){
+      var user = await User.findOne({ _id : id });
+      if(user){
+      var form = new multiparty.Form();
+      form.parse(req, async function (err, fields, files) {
+        files = files.images;
+        for (file of files) {
+          await imageUplader.uploadImage(file.path, 'users', user._id)
+            .then(async (newImage) =>{
+              await User.findOneAndUpdate({ _id: id }, { $push: { images: newImage } })
+            })
+            .catch((err) => {
+              console.log(err);
+            });
+        }
+        res.status(200).json({message: "ok"});
+      });
+    }else{
+      res.status(404).json({message : "offer not found" });
+    }
+    }else{
+      res.status(404).json({message : "invalid parameters"});
+      }
+  });
+  app.put('/api/user/:id/images/:imageId/main', async (req,res) => {
+    var id = parseInt(req.params.id);
+    var imageId = req.params.imageId;
+    if(id && imageId){
+      var user = await User.findOne({ _id : id });
+      if(user && user.images && user.images.find( x=>x.id == imageId)){
+        await User.findOneAndUpdate({ _id : id }, {$set : { 'images.$[].isMainImage': false } } );
+        var image = user.images.find( x=>x.id == imageId);
+        await User.findOneAndUpdate({ _id : id }, 
+          { $set : { mainImage : image.url, 'images.$[t].isMainImage' : true }},
+          { arrayFilters: [ {"t.id": imageId  } ] }
+          )
+          res.status(200).json({message: "ok"});
+      }else{
+        res.status(404).json({message : "user not found"});
+      }
+    }else{
+      res.status(404).json({message : "invalid parameters"});
+    }
+  });
 };
+
 
 
 function editUser(id, newUser, res){

@@ -2,6 +2,7 @@ var db = require('../config/connection');
 var middleware = require('../config/authMiddleware');
 var apn = require('apn');
 var moment = require('moment');
+var sendgrid = require('../lib/sendGrid');
 
 var apnProvider = new apn.Provider({
   production: false,
@@ -40,12 +41,12 @@ async function actionAcceptNotification(devices) {
        await apnProvider.send(note, device);
     });
 }
-async function creditAddNotification(devices) {
+async function creditAddNotification(devices, creditValue) {
   var note = new apn.Notification();
   note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
   note.badge = 1;
   note.alert = `\uD83D\uDCE7 \u2709 You get new credits!`;
-  note.payload = { message: `You get extra credits have fun!`, pushType: 'creditsAdded' };
+  note.payload = { message: `You get extra credits have fun!`, pushType: 'creditsAdded', credits: creditValue };
 
   devices.forEach(async (device) => {
      await apnProvider.send(note, device);
@@ -63,17 +64,18 @@ db.getInstance(function (p_db) {
 
 module.exports = function(app) {
 
-  app.put(['/api/admin/model/:id/accept'], function (req, res) {
+  app.put(['/api/admin/model/:id/accept'], async function (req, res) {
     var id = parseInt(req.params.id);
     var level = parseInt(req.body.level) || 4;
 
-    User.findOneAndUpdate({ _id: id }, { $set: { accepted: true, level: level, isAcceptationPending: false }},{new: true}, function (err, updated) {
+    User.findOneAndUpdate({ _id: id }, { $set: { accepted: true, level: level, isAcceptationPending: false }},{new: true}, async function (err, updated) {
       if(err) res.json({ message: "error" });
       if(updated.value !== undefined && updated.value !== null){
         var devices = updated.value.devices;
 
         userAcceptNotification(devices)
-        .then(x=>{
+        .then(async (x) =>{
+          await sendgrid.sendUserAcceptedMail(updated.value.email, req);
           res.json({ message: "The model has been accepted" });
         })
         .catch(err =>{
@@ -111,7 +113,7 @@ module.exports = function(app) {
     var creditValue = parseInt(req.body.credits);
     if(id && creditValue){
       User.findOneAndUpdate({ _id : id }, { $inc: { credits: creditValue }}).then( (user) => {
-        creditAddNotification(user.value.devices).then(() =>{
+        creditAddNotification(user.value.devices, creditValue).then(() =>{
           res.status(200).json({message: "Credits added"});
         });
       });
@@ -274,16 +276,7 @@ module.exports = function(app) {
   
   app.get('/api/admin/users/pending', (req, res) => {
     User.find({ isAcceptationPending: true }).toArray(async function (err, users) {
-      res.status(200).json(users.map(x=> { 
-        return {
-          id: x._id,
-          photo: x.photo,
-          email: x.email,
-          phone: x.phone,
-          birthDate: x.birthDate,
-          instagram: x.instagram
-        }
-    }));
+      res.status(200).json(users);
     });
   });
   app.get('/api/admin/users/offerPosts', (req,res) =>{
