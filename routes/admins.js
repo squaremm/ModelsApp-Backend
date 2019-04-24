@@ -5,7 +5,7 @@ var moment = require('moment');
 var sendgrid = require('../lib/sendGrid');
 
 var apnProvider = new apn.Provider({
-  production: false,
+  production: true,
 });
 
 async function userAcceptNotification(devices) {
@@ -41,12 +41,12 @@ async function actionAcceptNotification(devices) {
        await apnProvider.send(note, device);
     });
 }
-async function creditAddNotification(devices) {
+async function creditAddNotification(devices, creditValue) {
   var note = new apn.Notification();
   note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
   note.badge = 1;
   note.alert = `\uD83D\uDCE7 \u2709 You get new credits!`;
-  note.payload = { message: `You get extra credits have fun!`, pushType: 'creditsAdded' };
+  note.payload = { message: `You get extra credits have fun!`, pushType: 'creditsAdded', credits: creditValue };
 
   devices.forEach(async (device) => {
      await apnProvider.send(note, device);
@@ -113,7 +113,7 @@ module.exports = function(app) {
     var creditValue = parseInt(req.body.credits);
     if(id && creditValue){
       User.findOneAndUpdate({ _id : id }, { $inc: { credits: creditValue }}).then( (user) => {
-        creditAddNotification(user.value.devices).then(() =>{
+        creditAddNotification(user.value.devices, creditValue).then(() =>{
           res.status(200).json({message: "Credits added"});
         });
       });
