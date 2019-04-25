@@ -5,7 +5,7 @@ var moment = require('moment');
 var sendgrid = require('../lib/sendGrid');
 
 var apnProvider = new apn.Provider({
-  production: false,
+  production: true,
 });
 
 async function userAcceptNotification(devices) {
