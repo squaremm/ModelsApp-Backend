@@ -64,7 +64,7 @@ module.exports = function(app) {
           place._id = seq.value.seq;
 
           Place.insertOne( place, function() {
-            res.json({ message: "The place is added" });
+            res.json({ message: "The place is added", _id: seq.value.seq });
           });
         }
       );
