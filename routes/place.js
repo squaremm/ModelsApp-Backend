@@ -49,6 +49,7 @@ module.exports = function(app) {
     place.notificationRecivers = [];
     place.images = [];
     place.mainImage = null;
+    place.instapage = null;
 
     // Make all fields required
     if(!place.name || !place.type || !place.address || !place.photos || !place.location.coordinates ||
@@ -82,6 +83,7 @@ module.exports = function(app) {
         res.json({ message: "No such place" });
       } else {
 
+        if(newPlace.instapage !== place.instapage && newPlace.instapage) place.instapage = newPlace.instapage;
         if(newPlace.name !== place.name && newPlace.name) place.name = newPlace.name;
         if(newPlace.type !== place.type && newPlace.type) place.type = newPlace.type;
         if(newPlace.address !== place.address && newPlace.address) place.address = newPlace.address;
@@ -109,7 +111,7 @@ module.exports = function(app) {
           if(newPlace.location.coordinates[0] !== place.location.coordinates[0] && newPlace.location.coordinates[0]) place.location.coordinates[0] = parseFloat(newPlace.location.coordinates[0]);
           if(newPlace.location.coordinates[1] !== place.location.coordinates[1] && newPlace.location.coordinates[1]) place.location.coordinates[1] = parseFloat(newPlace.location.coordinates[1]);
         }
-
+        
         if(newPlace.photo) place.photos.push(newPlace.photo);
         if(newPlace.photos) place.photos.concat(newPlace.photos);
 

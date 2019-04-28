@@ -82,17 +82,17 @@ module.exports = function (app) {
   // Local client registration and authentication
   app.post('/api/auth/local/signup', function (req, res, next) {
     passport.authenticate('local-signup', { session: false, failWithError: true },
-      async function (err, user) {
-        user = await user;
+      async function (err, place) {
+        place = await place;
         if (err) return res.json({ message: err.message, token: null });
-        if (!user) {
+        if (!place) {
           return res.json({ message: req.authMessage, token: null });
         } else {
-          var accessToken = token.generateAccessToken(user._id);
+          var accessToken = token.generateAccessToken(place._id);
           if (!accessToken) {
             res.json({ message: "Registration failed", token: null });
           } else {
-            res.json({ message: "Registration completed", token: accessToken });
+            res.json({ message: "Registration completed", token: accessToken, _id : place._id  });
           }
         }
       })(req, res, next);

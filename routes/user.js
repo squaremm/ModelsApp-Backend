@@ -404,9 +404,9 @@ function editUser(id, newUser, res){
           user.devices.push(newUser.deviceID);
         }
       }
-
+      
       // User can link a referral only if he has not registered yet
-      if(newUser.referral && user.newUser) {
+      if(newUser.referral && !user.referredFrom) {
         var refCredits = 150;
         User.findOne({ referralCode: newUser.referral }, function(err, us) {
           if(!us) {
