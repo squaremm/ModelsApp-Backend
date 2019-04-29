@@ -109,7 +109,7 @@ module.exports = function (app) {
           if (!accessToken) {
             res.json({ message: "Registration failed", token: null });
           } else {
-            res.json({ message: "Registration completed", token: accessToken });
+            res.json({ message: "Registration completed", token: accessToken, _id : place._id  });
           }
         }
       })(req, res, next);
