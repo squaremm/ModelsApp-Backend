@@ -1,57 +1,8 @@
 var db = require('../config/connection');
 var middleware = require('../config/authMiddleware');
-var apn = require('apn');
 var moment = require('moment');
 var sendgrid = require('../lib/sendGrid');
-
-var apnProvider = new apn.Provider({
-  production: true,
-});
-
-async function userAcceptNotification(devices) {
-  var note = new apn.Notification();
-    note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
-    note.badge = 1;
-    note.alert = `\uD83D\uDCE7 \u2709 Your account has beed accepted!`;
-    note.payload = { message: `Now you have access to all resources`, pushType: 'userAccept' };
-  devices.forEach(async (device) => {
-     await apnProvider.send(note, device);
-  });
-  
-}
-async function userRejectNotification(devices) {
-  var note = new apn.Notification();
-  note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
-  note.badge = 1;
-  note.alert = `\uD83D\uDCE7 \u2709 Your account has beed rejected!`;
-  note.payload = { message: `You lost access to account`, pushType: 'userRejected' };
-
-  devices.forEach(async (device) => {
-     await apnProvider.send(note, device);
-  });
-}
-async function actionAcceptNotification(devices) {
-    var note = new apn.Notification();
-    note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
-    note.badge = 1;
-    note.alert = `\uD83D\uDCE7 \u2709 You get new credits!`;
-    note.payload = { message: `We accepted your action`, pushType: 'actionAccepted' };
-  
-    devices.forEach(async (device) => {
-       await apnProvider.send(note, device);
-    });
-}
-async function creditAddNotification(devices, creditValue) {
-  var note = new apn.Notification();
-  note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
-  note.badge = 1;
-  note.alert = `\uD83D\uDCE7 \u2709 You get new credits!`;
-  note.payload = { message: `You get extra credits have fun!`, pushType: 'creditsAdded', credits: creditValue };
-
-  devices.forEach(async (device) => {
-     await apnProvider.send(note, device);
-  });
-}
+var pushProvider = require('../lib/pushProvider');
 
 var User, Place, Offer, OfferPost, Booking;
 db.getInstance(function (p_db) {
@@ -73,7 +24,7 @@ module.exports = function(app) {
       if(updated.value !== undefined && updated.value !== null){
         var devices = updated.value.devices;
 
-        userAcceptNotification(devices)
+        pushProvider.userAcceptNotification(devices)
         .then(async (x) =>{
           await sendgrid.sendUserAcceptedMail(updated.value.email, req);
           res.json({ message: "The model has been accepted" });
@@ -94,7 +45,7 @@ module.exports = function(app) {
       if(updated.value !== undefined && updated.value !== null){
         var devices = updated.value.devices;
 
-        userRejectNotification(devices)
+        pushProvider.userRejectNotification(devices)
         .then(x=>{
           res.json({ message: "The model has been rejected" });
         })
@@ -113,7 +64,7 @@ module.exports = function(app) {
     var creditValue = parseInt(req.body.credits);
     if(id && creditValue){
       User.findOneAndUpdate({ _id : id }, { $inc: { credits: creditValue }}).then( (user) => {
-        creditAddNotification(user.value.devices, creditValue).then(() =>{
+        pushProvider.creditAddNotification(user.value.devices, creditValue).then(() =>{
           res.status(200).json({message: "Credits added"});
         });
       });
@@ -186,7 +137,7 @@ module.exports = function(app) {
         if(!offerPost.accepted){
           User.findOneAndUpdate({ _id: offerPost.user }, { $inc: { credits: offerPost.credits } })
             .then(user => {
-              actionAcceptNotification(user.value.devices)
+              pushProvider.actionAcceptNotification(user.value.devices)
                 .then(() => {
                   OfferPost.findOneAndUpdate({_id: id },{ $set: { accepted: true, approvementLink: approvementLink } })
                     .then(() => {
