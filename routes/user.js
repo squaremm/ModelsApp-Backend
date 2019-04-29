@@ -7,21 +7,13 @@ var sendGrid = require('../lib/sendGrid');
 var bcrypt = require('bcrypt-nodejs');
 var imageUplader = require('../lib/imageUplader');
 var multiparty = require('multiparty');
+var pushProvider = require('../lib/pushProvider');
 
 var apnProvider = new apn.Provider({
   production: false,
 });
 
-async function sendIos(deviceId, user) {
-  var note = new apn.Notification();
-  note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
-  note.badge = 1;
-  note.alert = `\uD83D\uDCE7 \u2709 New referral!`;
-  note.payload = { message: `You have one new referral: ${user}`, referralAccepted: 1 };
 
-  var data = await apnProvider.send(note, deviceId);
-  return data;
-}
 
 var User, Booking, Offer, Place, OfferPost;
 db.getInstance(function (p_db) {
@@ -307,7 +299,10 @@ module.exports = function(app) {
           await imageUplader.deleteImage(image.cloudinaryId)
           .then(() => {
             User.findOneAndUpdate({_id: id}, { $pull: { 'images' : { 'id': image.id } }})
-              .then(() => {
+              .then(async () => {
+                if(user.mainImage == image.url){
+                  await User.findOneAndUpdate({_id: id }, {$set: { mainImage:  null } })
+                }
                 res.status(200).json({message: 'ok'});
               })
               .catch((err) => {
@@ -404,9 +399,9 @@ function editUser(id, newUser, res){
           user.devices.push(newUser.deviceID);
         }
       }
-
+      
       // User can link a referral only if he has not registered yet
-      if(newUser.referral && user.newUser) {
+      if(newUser.referral && !user.referredFrom) {
         var refCredits = 150;
         User.findOne({ referralCode: newUser.referral }, function(err, us) {
           if(!us) {
@@ -432,7 +427,10 @@ function editUser(id, newUser, res){
 
                 // Send push notifications to all referral code owner's devices
                 if(us.devices){
-                  sendIos(us.devices, user.name + ' ' + user.surname);
+                  pushProvider.sendReferralINotification(us.devices, user.name + ' ' + user.surname)
+                    .then(() => {
+                      
+                    });
                 }
               }
             }

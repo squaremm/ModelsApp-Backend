@@ -2,30 +2,7 @@ var db = require('../config/connection');
 var apn = require('apn');
 var moment = require('moment');
 var sendGrid = require('../lib/sendGrid');
-
-var apnProvider = new apn.Provider({
-  production: false,
-});
-
-async function bookingClosedNotification(devices, payed, placeName) {
-    var note = new apn.Notification();
-    note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
-    note.badge = 1;
-    note.alert = `\uD83D\uDCE7 \u2709 Booking closed!`;
-    note.payload = { 
-      message: `Your booking has been closed you lost change to get points`,
-      pushType: 'bookingClosed', 
-      bookingCredits: payed,
-      bookingName : placeName
-     };
-  
-    devices.forEach(async (device) => {
-        await apnProvider.send(note, device);
-     });
-  };
-
-  
-
+var pushProvider = require('../lib/pushProvider');
 
 exports.checkBookingExpired = function(db){
     setInterval(() => {
@@ -62,7 +39,7 @@ function intervalFuncCheckBookingExpired (db) {
                                         if(user){
                                             console.log('send notification');
                                           var place = await Place.findOne({_id: booking.place});
-                                          await bookingClosedNotification(user.devices, booking.payed, place.name);
+                                          await pushProvider.bookingClosedNotification(user.devices, booking.payed, place.name);
                                         }
                                     });
                             }

@@ -462,7 +462,8 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
       res.json(posts);
     });
   });
-
+ 
+  //Delete image
   app.delete('/api/offer/:id/images', async (req,res) => {
     var id = parseInt(req.params.id);
     var imageId = req.body.imageId;
@@ -474,7 +475,10 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
           await imageUplader.deleteImage(image.cloudinaryId)
           .then(() => {
             Offer.findOneAndUpdate({_id: id}, { $pull: { 'images' : { 'id': image.id } }})
-              .then(() => {
+              .then(async () => {
+                if(offer.mainImage == image.url){
+                  await Offer.findOneAndUpdate({_id: id }, {$set: { mainImage:  null } })
+                }
                 res.status(200).json({message: 'ok'});
               })
               .catch((err) => {
@@ -495,6 +499,7 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
     }
     
   });
+   //Add new images to offer
   app.post('/api/offer/:id/images', async (req,res) => {
     var id = parseInt(req.params.id);
     if(id){
@@ -521,6 +526,7 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
       res.status(404).json({message : "invalid parameters"});
       }
   });
+  //change main image
   app.put('/api/offer/:id/images/:imageId/main', async (req,res) => {
     var id = parseInt(req.params.id);
     var imageId = req.params.imageId;
@@ -539,6 +545,24 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
       }
     }else{
       res.status(404).json({message : "invalid parameters"});
+    }
+  });
+
+  //edit existing offer
+  app.put('/api/offer/:id', async (req,res) => {
+    let id = parseInt(req.params.id);
+    let reqOffer = req.body.offer;
+    if(id){
+      var offer = await Offer.findOne({ _id : id});
+      if(offer){
+        Offer.replaceOne({ _id : id }, reqOffer, async (status) => {
+          res.status(200).json(await Offer.findOne({ _id: id}));
+        });
+      }else{
+        res.status(404).json({message : "offer not found"});
+      }
+    }else{
+      res.status(404).json({message: "invalid parameters" });
     }
   });
 };

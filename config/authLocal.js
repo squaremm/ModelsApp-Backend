@@ -64,7 +64,11 @@ module.exports = function (passport) {
                     credits: 0,
                     bookings: [],
                     offers: [],
-                    posts: []
+                    posts: [],
+                    notificationRecivers: [],
+                    images: [],
+                    mainImage: null,
+                    instapage: null
                   };
                   console.log(newPlace)
                   Place.insertOne(newPlace);
