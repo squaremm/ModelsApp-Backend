@@ -235,7 +235,10 @@ module.exports = function(app) {
           await imageUplader.deleteImage(image.cloudinaryId)
           .then(() => {
             Place.findOneAndUpdate({_id: id}, { $pull: { 'images' : { 'id': image.id } }})
-              .then(() => {
+              .then(async () => {
+                if(place.mainImage == image.url){
+                  await Place.findOneAndUpdate({_id: id }, {$set: { mainImage:  null } })
+                }
                 res.status(200).json({message: 'ok'});
               })
               .catch((err) => {

@@ -475,7 +475,10 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
           await imageUplader.deleteImage(image.cloudinaryId)
           .then(() => {
             Offer.findOneAndUpdate({_id: id}, { $pull: { 'images' : { 'id': image.id } }})
-              .then(() => {
+              .then(async () => {
+                if(offer.mainImage == image.url){
+                  await Offer.findOneAndUpdate({_id: id }, {$set: { mainImage:  null } })
+                }
                 res.status(200).json({message: 'ok'});
               })
               .catch((err) => {
