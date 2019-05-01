@@ -3,6 +3,7 @@ var middleware = require('../config/authMiddleware');
 var moment = require('moment');
 var imageUplader = require('../lib/imageUplader');
 var multiparty = require('multiparty');
+var pushProvider = require('../lib/pushProvider');
 
 var User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
 db.getInstance(function (p_db) {
@@ -184,6 +185,19 @@ module.exports = function(app) {
                   } else {
                     User.findOneAndUpdate({_id: offer.user}, {$push: {offers: seq.value.seq}});
                     Offer.insertOne(offer);
+                    
+                    User.find({ accepted : true }).toArray(async (err, users) => {
+                      OfferPost.distinct('user', { place: place.value._id }).then(async (posts) => {
+                        let devices = [];
+                        posts.forEach((post) => {
+                          var user = users.find(x=>x._id == post);
+                          if(user) devices.push(user.devices);
+                        });
+                        devices = devices.reduce((a,b) => a.concat(b));
+                        await pushProvider.sendNewOfferNotification(devices, offer, place.value);
+                      });
+                    });
+
                     res.json({message: "Offer created"});
                   }
                 });
