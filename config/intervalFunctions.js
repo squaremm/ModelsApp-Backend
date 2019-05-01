@@ -58,7 +58,7 @@ function intervalFuncSendReportBookingEmail (db) {
 
       var currentHour = parseInt(moment().format('hh'));
       var currentMinute = parseInt(moment().format('mm'));
-      if(currentHour == 22 && currentMinute <= 20){
+      if(currentHour == 19 && currentMinute <= 20){
         //retrive all users -> may be need to send push notification
         User.find({ accepted: true }).toArray(async (userError, users) => {
         Place.find({ }).toArray(async (error, places) => {
