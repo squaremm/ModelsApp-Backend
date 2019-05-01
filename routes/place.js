@@ -83,6 +83,7 @@ module.exports = function(app) {
         res.json({ message: "No such place" });
       } else {
 
+        if(newPlace.phone !== place.phone && newPlace.phone) place.phone = newPlace.phone;
         if(newPlace.instapage !== place.instapage && newPlace.instapage) place.instapage = newPlace.instapage;
         if(newPlace.name !== place.name && newPlace.name) place.name = newPlace.name;
         if(newPlace.type !== place.type && newPlace.type) place.type = newPlace.type;
