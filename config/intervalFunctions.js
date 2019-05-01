@@ -1,18 +1,18 @@
-var db = require('../config/connection');
-var apn = require('apn');
 var moment = require('moment');
 var sendGrid = require('../lib/sendGrid');
 var pushProvider = require('../lib/pushProvider');
+var schedule = require('node-schedule');
+ 
 
 exports.checkBookingExpired = function(db){
-    setInterval(() => {
+    schedule.scheduleJob('* * * * *', function(){
       intervalFuncCheckBookingExpired(db);
-    }, 60000);
+    });
   }
   exports.sendReportBookingEmail = function(db){
-    setInterval(() => {
+    schedule.scheduleJob('0 20 * * *', function(){
       intervalFuncSendReportBookingEmail(db);
-    }, 900000);
+    });
   }
   
 function intervalFuncCheckBookingExpired (db) {
@@ -56,9 +56,6 @@ function intervalFuncSendReportBookingEmail (db) {
       Place = p_db.collection('places');
       User = p_db.collection('users');
 
-      var currentHour = parseInt(moment().format('hh'));
-      var currentMinute = parseInt(moment().format('mm'));
-      if(currentHour == 19 && currentMinute <= 20){
         //retrive all users -> may be need to send push notification
         User.find({ accepted: true }).toArray(async (userError, users) => {
         Place.find({ }).toArray(async (error, places) => {
@@ -79,6 +76,5 @@ function intervalFuncSendReportBookingEmail (db) {
           });
         });
       });
-      }
   });
 }
