@@ -55,7 +55,7 @@ function intervalFuncSendReportBookingEmail (db) {
       Booking = p_db.collection('bookings'); 
       Place = p_db.collection('places');
       User = p_db.collection('users');
-      
+
         //retrive all users -> may be need to send push notification
         User.find({ accepted: true }).toArray(async (userError, users) => {
         Place.find({ }).toArray(async (error, places) => {
