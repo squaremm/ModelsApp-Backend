@@ -371,6 +371,24 @@ module.exports = function(app) {
       res.status(404).json({message : "invalid parameters"});
     }
   });
+    // Delete specific User permanent
+  // not handle flag anywhere in system
+  app.delete('/api/user/:id/permanent', function (req, res) {
+    var id = parseInt(req.params.id);
+    if(id){
+      User.deleteOne({ _id : id })
+        .then(() => {
+          Booking.deleteMany({user: id  })
+            .then(() => {
+              OfferPost.deleteMany({ user: id }).then(() => {
+                res.status(200).json({message: "user deleted permanentnly"});
+              });
+            })
+      })
+    }else{
+       res.status(400).json({message: "invalid parameter"});
+    }
+  });
 };
 
 
