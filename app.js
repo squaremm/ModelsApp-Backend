@@ -2,7 +2,11 @@ require('dotenv').config();
 var express = require('express');
 var cors = require('cors');
 var passport = require('passport');
+var config = require('./config/index');
 var app = express();
+
+const Sentry = require('@sentry/node');
+Sentry.init({ dsn: config.sentryUrl });
 
 var db = require('./config/connection');
 db.initPool();
@@ -48,4 +52,18 @@ app.listen(PORT, '0.0.0.0', function () {
   console.log('Everything is ill right on port %d!', PORT)
 });
 
+app.use((err, req, res, next) => {
+  if (! err) {
+      return next();
+  }
+  let excetpionOpbject = {
+    err: err,
+    method: req.method,
+    path: req.path,
+    host: req.host,
+    body: req.body
+  }
+  Sentry.captureException(excetpionOpbject);
+  res.status(500).json({message : "Something went wrong!" });
+});
 
