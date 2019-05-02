@@ -2,6 +2,7 @@ var Strategy = require('passport-local').Strategy;
 var db = require('./connection');
 var bcrypt = require('bcrypt-nodejs');
 var moment = require('moment');
+var pushProvider = require('../lib/pushProvider');
 
 var Counter, Place;
 db.getInstance(function (p_db) {
@@ -72,6 +73,10 @@ module.exports = function (passport) {
                   };
                   console.log(newPlace)
                   Place.insertOne(newPlace);
+                  User.find({ accepted : true }).toArray(async (err, list) => {
+                    let devices = list.map(x=> x.devices).reduce((a,b) => a.concat(b));
+                    await pushProvider.sendNewPlaceNotification(devices, newPlace);
+                  });
                   return done(null, newPlace);
                 });
               } else {

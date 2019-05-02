@@ -290,7 +290,7 @@ module.exports = function(app) {
   });
   app.delete('/api/user/:id/images', async (req,res) => {
     var id = parseInt(req.params.id);
-    var imageId = req.body.imageId;
+    var imageId = req.body.imageId || req.query.imageId;
     if(id){
       var user = await User.findOne({ _id : id });
       if(user){
