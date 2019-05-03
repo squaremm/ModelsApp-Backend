@@ -5,7 +5,7 @@ var schedule = require('node-schedule');
  
 
 exports.checkBookingExpired = function(db){
-    schedule.scheduleJob('* * * * *', function(){
+    schedule.scheduleJob('*/5 * * * *', function(){
       intervalFuncCheckBookingExpired(db);
     });
   }
@@ -56,8 +56,7 @@ function intervalFuncSendReportBookingEmail (db) {
       Place = p_db.collection('places');
       User = p_db.collection('users');
 
-        //retrive all users -> may be need to send push notification
-        User.find({ accepted: true }).toArray(async (userError, users) => {
+        User.find({ }).toArray(async (userError, users) => {
         Place.find({ }).toArray(async (error, places) => {
           places.forEach(async (place) => {
             if(place.notificationRecivers && place.notificationRecivers.length > 0){
@@ -66,7 +65,11 @@ function intervalFuncSendReportBookingEmail (db) {
                 var listToSend = [];
                 await bookings.forEach(async (booking) => {
                   var user = users.find(x=>x._id == booking.user);
-                  listToSend.push(`booking date: ${ booking.date }, time:  ${booking.startTime }-${booking.endTime }, user:  ${user.email }, ${user.name } ${user.surname } `);
+                  let line = `booking date: ${ booking.date }, time:  ${booking.startTime }-${booking.endTime },`;
+                  if(user){
+                    line += ` user:  ${user.email }, ${user.name } ${user.surname } `;
+                  }
+                  listToSend.push(line);
                 });
                 place.notificationRecivers.forEach(async (reciver) => {
                  await sendGrid.sendBookingReport(reciver.email, listToSend, place);

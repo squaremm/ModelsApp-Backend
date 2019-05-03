@@ -60,7 +60,7 @@ module.exports = function (passport) {
                     },
                     level: null,
                     schedule: {},
-                    slots: null,
+                    slots: body.slots || null,
                     creationDate: moment().format('DD-MM-YYYY'),
                     credits: 0,
                     bookings: [],

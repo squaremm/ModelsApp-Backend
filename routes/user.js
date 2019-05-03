@@ -181,11 +181,14 @@ module.exports = function(app) {
   // Get the offerPosts belonging to specific User
   app.get('/api/user/:id/offerPosts', function (req, res) {
     var id = parseInt(req.params.id);
-
-    OfferPost.find({ user: id }).toArray(async function (err, posts) {
-      var user = await User.findOne({ _id: id }, { projection: { photo: 1, credits: 1, name: 1 }});
-      res.json({ posts: posts, user: user });
-    });
+    if(id){
+      OfferPost.find({ user: id }).toArray(async function (err, posts) {
+        var user = await User.findOne({ _id: id }, { projection: { photo: 1, credits: 1, name: 1 }});
+        res.json({ posts: posts, user: user });
+      });
+    }else{
+      res.status(400).json({message: 'invalid parameter'})
+    }
   });
 
   // Get all Users Offer Post with a good structure
