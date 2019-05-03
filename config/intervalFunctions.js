@@ -5,7 +5,7 @@ var schedule = require('node-schedule');
  
 
 exports.checkBookingExpired = function(db){
-    schedule.scheduleJob('* * * * *', function(){
+    schedule.scheduleJob('*/5 * * * *', function(){
       intervalFuncCheckBookingExpired(db);
     });
   }
