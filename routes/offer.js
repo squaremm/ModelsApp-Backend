@@ -193,8 +193,10 @@ module.exports = function(app) {
                           var user = users.find(x=>x._id == post);
                           if(user) devices.push(user.devices);
                         });
-                        devices = devices.reduce((a,b) => a.concat(b));
-                        await pushProvider.sendNewOfferNotification(devices, offer, place.value);
+                        if(devices.length > 0){
+                          devices = devices.reduce((a,b) => a.concat(b));
+                          await pushProvider.sendNewOfferNotification(devices, offer, place.value);
+                        }
                       });
                     });
 
