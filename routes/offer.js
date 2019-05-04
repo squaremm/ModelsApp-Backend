@@ -60,6 +60,15 @@ module.exports = function(app) {
       res.json(offers);
     });
   });
+  app.get('/api/place/:id/bookingOffers', (req,res) => {
+    var id = parseInt(req.params.id);
+    var start = req.body.start;
+    var end = req.body.end;
+
+    Offer.find({ place: id, start: start, end: end }).toArray(function (err, offers) {
+      res.json(offers);
+    });
+  });
 
   app.get('/api/offer/:id/booking/:bookingId/actions', async (req, res) =>{
     var offerId = parseInt(req.params.id);
@@ -146,69 +155,85 @@ module.exports = function(app) {
     });
 
   // Create the offer. Then wait for the post, admin's check of the post, and then close it
-  app.post('/api/place/:id/offer', function (req, res) {
+  app.post('/api/place/:id/offer', async function (req, res) {
     var id = parseInt(req.params.id);
-    if (req.body.name && id && req.body.userID && req.body.price && req.body.composition && req.body.credits && req.body.photo) {
-      var offer = {};
-      offer.name = req.body.name;
-      offer.place = id;
-      offer.user = parseInt(req.body.userID);
-      offer.price = parseInt(req.body.price);
-      offer.creationDate = moment().format('DD-MM-YYYY');
-      offer.composition = req.body.composition;
-      offer.credits = req.body.credits;
-      Object.keys(offer.credits).map(function (key) {
-        offer.credits[key] = parseInt(offer.credits[key]);
-      });
-      offer.photo = req.body.photo;
-      offer.post = null;
-      offer.closed = false;
-      offer.level = parseInt(req.body.level) || 4;
-      offer.images = [];
-      offer.mainImage = null;
+    var start = req.body.start;
+    var end = req.body.end;
+    var name = req.body.name
+    var userID = req.body.userID;
+    var composition =  req.body.composition;
+    var price = req.body.price;
+    var credits = req.body.credits;
 
-      User.findOne({ _id: offer.user }, { projection: { credits: 1 }}, function (err, user) {
-        if (!user) {
-          res.json({ message: "No such user" });
-        } else {
-            Counter.findOneAndUpdate(
-              {_id: "offerid"},
-              {$inc: {seq: 1}},
-              {new: true},
-              function (err, seq) {
-                if (err) console.log(err);
-                offer._id = seq.value.seq;
-
-                Place.findOneAndUpdate({_id: id}, {$push: {offers: seq.value.seq}}, function (err, place) {
-                  if (!place.value) {
-                    res.json({message: "No such place"});
-                  } else {
-                    User.findOneAndUpdate({_id: offer.user}, {$push: {offers: seq.value.seq}});
-                    Offer.insertOne(offer);
-                    
-                    User.find({ accepted : true }).toArray(async (err, users) => {
-                      OfferPost.distinct('user', { place: place.value._id }).then(async (posts) => {
-                        let devices = [];
-                        posts.forEach((post) => {
-                          var user = users.find(x=>x._id == post);
-                          if(user) devices.push(user.devices);
+    if (name && id && userID && price && composition && credits && start && end) {
+      var interval = await Interval.findOne({place: id, intervals: { $elemMatch : { start: start, end : end } } });
+      if(interval){
+        var offer = {};
+        offer.name = name;
+        offer.place = id;
+        offer.user = parseInt(userID);
+        offer.price = parseInt(price);
+        offer.creationDate = moment().format('DD-MM-YYYY');
+        offer.composition = composition;
+        offer.credits = credits;
+        Object.keys(offer.credits).map(function (key) {
+          offer.credits[key] = parseInt(offer.credits[key]);
+        });
+        offer.photo = req.body.photo;
+        offer.post = null;
+        offer.closed = false;
+        offer.level = parseInt(req.body.level) || 4;
+        offer.images = [];
+        offer.mainImage = null;
+        offer.start = start;
+        offer.end = end;
+  
+        User.findOne({ _id: offer.user }, { projection: { credits: 1 }}, function (err, user) {
+          if (!user) {
+            res.json({ message: "No such user" });
+          } else {
+              Counter.findOneAndUpdate(
+                {_id: "offerid"},
+                {$inc: {seq: 1}},
+                {new: true},
+                function (err, seq) {
+                  if (err) console.log(err);
+                  offer._id = seq.value.seq;
+  
+                  Place.findOneAndUpdate({_id: id}, {$push: {offers: seq.value.seq}}, function (err, place) {
+                    if (!place.value) {
+                      res.json({message: "No such place"});
+                    } else {
+                      User.findOneAndUpdate({_id: offer.user}, {$push: {offers: seq.value.seq}});
+                      Offer.insertOne(offer);
+                      
+                      User.find({ accepted : true }).toArray(async (err, users) => {
+                        OfferPost.distinct('user', { place: place.value._id }).then(async (posts) => {
+                          let devices = [];
+                          posts.forEach((post) => {
+                            var user = users.find(x=>x._id == post);
+                            if(user) devices.push(user.devices);
+                          });
+                          if(devices.length > 0){
+                            devices = devices.reduce((a,b) => a.concat(b));
+                            await pushProvider.sendNewOfferNotification(devices, offer, place.value);
+                          }
                         });
-                        if(devices.length > 0){
-                          devices = devices.reduce((a,b) => a.concat(b));
-                          await pushProvider.sendNewOfferNotification(devices, offer, place.value);
-                        }
                       });
-                    });
-
-                    res.json({message: "Offer created"});
-                  }
-                });
-              }
-            );
-        }
-      });
+  
+                      res.json({message: "Offer created"});
+                    }
+                  });
+                }
+              );
+          }
+        });
+      }
+      else{
+        res.status(400).json({message: "no interval for date ranges"})
+      }
     } else {
-      res.json({message: "Required fields are not fulfilled"});
+      res.json({message: "Required fields are not fulfilled, required are: name, userID, price, composition, credits, start, end"});
     }
   });
 

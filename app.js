@@ -35,11 +35,13 @@ require('./routes/admins')(app);
 require('./routes/client')(app);
 require('./routes/offer')(app);
 require('./routes/booking')(app);
+require('./routes/intevals')(app);
 require('./routes/place')(app);
 require('./routes/statistics')(app);
 require('./routes')(app);
 require('./Views/htmlViews')(app);
 require('./routes/samplePost')(app);
+
 
 var functions = require('./config/intervalFunctions');
 

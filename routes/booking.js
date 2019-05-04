@@ -17,29 +17,36 @@ module.exports = function(app) {
 
   app.get('/api/place/:id/book/slots', function (req, res) {
     var id = parseInt(req.params.id);
-    var date = req.query.date;
-
+    var reqDate = req.body.date;
+    let day = moment(reqDate);
+    let date =  moment(reqDate).format('DD-MM-YYYY');
     if(!date) {
       res.json({ message: "Please, provide the date" });
     } else {
-      Place.findOne({ _id: id }, function (err, place) {
-        if(!place) {
-          res.json({ message: "No such place" });
-        } else {
-          Interval.findOne({ _id: place.intervals }, async function (err, intervals) {
-            if(!intervals) {
-              res.json({ message: "This place has no booking intervals" });
+      if(day.isValid()){
+          Place.findOne({ _id: id }, function (err, place) {
+            if(!place) {
+              res.json({ message: "No such place" });
             } else {
-              var newArr = await Promise.all(intervals.intervals.map(async function (interval) {
-              var taken = await Booking.countDocuments({ place: id, date: date, startTime: interval.start });
-                interval.free = place.slots - taken;
-                return interval;
-              }));
-              res.json(newArr);
-            }
-          });
-        }
-      });
+            Interval.findOne({ place: place._id }, async function (err, intervals) {
+              if(!intervals) {
+                res.json({ message: "This place has no booking intervals" });
+              } else {
+                var newArr = await Promise.all(intervals.intervals.map(async function (interval) {
+                  if(interval.day == day.format('dddd')){
+                    var taken = await Booking.countDocuments({ place: id, date: date, startTime: interval.start, day: interval.day });
+                    interval.free = interval.slots - taken;
+                    return interval;
+                  }
+                }));
+                res.json(newArr.filter(x=> x != null));
+              }
+            });
+          }
+        });
+      }else{
+        res.json({message: "Invalid date format, accepted format is YYYY-DD-MM"});
+      }
     }
   });
 
@@ -156,113 +163,6 @@ module.exports = function(app) {
       }
     });
   });
-  //delete booking slot 
-  app.delete('/api/place/:id/intervals',function(req,res){
-    var id = parseInt(req.params.id);
-    if(req.body.id){
-      Interval.updateOne({place:id,"intervals.id":req.body.id},{$pull:{intervals:{id:req.body.id}}},function(err,data){
-        if(err) {
-              res.status(500);
-            res.json({message:"Not deleted"});
-            }else{
-              res.json({message:"deleted"});
-            } 
-      });
-    }else{
-      Interval.deleteOne({place:id},function(err,deleted){
-        if(err) {
-          res.status(500);
-        res.json({message:"Not deleted"});
-        }else{
-          res.json({message:"deleted"});
-        }
-      })
-    } 
-
-  });
-
-  // Create the Booking Intervals entity
-  app.post('/api/place/:id/intervals', function (req, res) {
-    var id = parseInt(req.params.id);
-    var interval = {};
-    interval.intervals = req.body.intervals;
-    interval.place = id;
-
-    Counter.findOneAndUpdate(
-      {_id: "intervalsid"},
-      {$inc: {seq: 1}},
-      {new: true},
-      function (err, seq) {
-        if (err) console.log(err);
-        interval._id = seq.value.seq;
-
-        Place.find({_id: id},  function (err, place) {
-
-          if (!place) {
-            res.json({message: "No such place "});
-          } else {
-            Interval.find({place:id},function(err,data){
-            if(data){
-              Interval.deleteOne({place:id},function(err,doc){
-                if(err) res.status(400).send({message:"errror"});
-                Interval.insertOne(interval);
-               res.json({message: "Booking intervals are added"});
-              })
-            }else{
-              Interval.insertOne(interval);
-              res.json({message: "1st Booking intervals are added"});
-            }
-            })
-            
-          }
-        })
-      }
-    );
-  });
-
-  // Get Booking Intervals for the specific place
-  app.get('/api/place/:id/intervals', function (req, res) {
-    var id = parseInt(req.params.id);
-      if(req.body.id){
-       Interval.aggregate(
-          [
-            {
-              $match: {
-                  place:id,"intervals.id":req.body.id
-              }
-            },
-            {
-              $addFields: {
-                intervals:{
-                    $filter:{
-                      input:"$intervals",
-                      as:"sp",
-                      cond:{$eq:["$$sp.id",req.body.id]}  
-                    }
-                  }
-              }
-            },
-        
-          ]).toArray(function(err, docs) {
-            if (err) {
-              res.json({message: "No such intervals"});
-            } else {
-              res.json(docs);
-            }
-      })
-           
-      }
-      else{
-        Interval.findOne({place: id}, function (err, interval) {
-          if (!interval) {
-            res.json({message: "No such intervals"});
-          } else {
-            res.json(interval);
-          }
-        })
-      }
-    
-  });
 
   // Add offer to the booking
   app.put('/api/place/book/:id/offer', function (req, res) {
@@ -306,12 +206,13 @@ module.exports = function(app) {
       var newBooking = {};
       newBooking.user = parseInt(req.body.userID);
       newBooking.place = id;
-      newBooking.date = req.body.date;
+      newBooking.date = moment(req.body.date).format('DD-MM-YYYY');
       newBooking.creationDate = moment().format('DD-MM-YYYY');
       newBooking.closed = false;
       newBooking.claimed = false;
       newBooking.offers = [];
       newBooking.offerActions = [];
+      newBooking.day = moment(req.body.date).format('dddd');
 
       var minOffer;
       var minOfferPrice = 0;
@@ -326,74 +227,84 @@ module.exports = function(app) {
         minOfferPrice = minOffer[0]['price'];
       }
 
-      Interval.findOne({place: id}, function (err, interval) {
+      Interval.findOne({place: id}, async function (err, interval) {
         if (!interval || !interval.intervals[intervalNum]) {
           res.status(404).json({message: "No intervals for this place"});
         } else {
-          newBooking.startTime = interval.intervals[intervalNum]["start"];
-          newBooking.endTime = interval.intervals[intervalNum]["end"];
-          newBooking.slot = interval.intervals[intervalNum]["slot"];
-
-          Booking.findOne({
-            place: id,
-            date: newBooking.date,
-            user: newBooking.user,
-            closed: false
-          }, {projection: {_id: 1}}, function (err, book) {
-            if (book) {
-              res.status(500);
-              res.json({message: "Sorry, you have already booked a spot for that day here"});
-            } else {
-              Booking.find({
+          if(!interval.intervals[intervalNum].day || interval.intervals[intervalNum].day !== newBooking.day){
+            res.status(400).json({message: "choosend date not match for inteval"});
+          }else{
+            let choosenInterval = interval.intervals[intervalNum];
+            var taken = await Booking.countDocuments({ place: id, date: newBooking.date , startTime: choosenInterval.start, day: choosenInterval.day });
+            free = choosenInterval.slots - taken;
+            if(free == 0){
+              res.status(400).json({message: "there is no enough slots to make booking"});
+            }else{
+              newBooking.startTime = interval.intervals[intervalNum]["start"];
+              newBooking.endTime = interval.intervals[intervalNum]["end"];
+  
+              Booking.findOne({
                 place: id,
                 date: newBooking.date,
-                startTime: newBooking.startTime,
+                user: newBooking.user,
                 closed: false
-              }, {projection: {_id: 1}}).toArray(function (err, books) {
-
-                Place.findOne({_id: id}, {slots: 1}, function (err, place) {
-                  if (!place) {
-                    res.json({message: "No such place"});
-                  } else {
-                    if (books.length >= newBooking.slot) {
-                      res.status(500);
-                      res.json({message: "Sorry, all slots are booked for this time"});
+              }, {projection: {_id: 1}}, function (err, book) {
+              if (book) {
+                res.status(500);
+                res.json({message: "Sorry, you have already booked a spot for that day here"});
+              } else {
+                Booking.find({
+                  place: id,
+                  date: newBooking.date,
+                  startTime: newBooking.startTime,
+                  closed: false
+                }, {projection: {_id: 1}}).toArray(function (err, books) {
+  
+                  Place.findOne({_id: id}, {slots: 1}, function (err, place) {
+                    if (!place) {
+                      res.json({message: "No such place"});
                     } else {
-
-                      // if(moment().isBefore(moment(newBooking.date + ' ' + newBooking.startTime, 'DD-MM-YYYY HH.mm'))) {
-                      Counter.findOneAndUpdate({_id: "bookingid"}, {$inc: {seq: 1}}, {new: true}, function (err, seq) {
-                        if (err) console.log(err);
-                        newBooking._id = seq.value.seq;
-
-                        User.findOne({_id: newBooking.user}, {projection: {credits: 1}}, function (err, user) {
-                          if (!user) {
-                            res.json({message: "No such user"});
-                          } else {
-                            if (user.credits < minOfferPrice) {
-                              res.status(402);
-                              res.json({message: "Sorry, you have not enough credits to book place and take the cheapeste."});
+                      if (books.length >= newBooking.slot) {
+                        res.status(500);
+                        res.json({message: "Sorry, all slots are booked for this time"});
+                      } else {
+  
+                        // if(moment().isBefore(moment(newBooking.date + ' ' + newBooking.startTime, 'DD-MM-YYYY HH.mm'))) {
+                        Counter.findOneAndUpdate({_id: "bookingid"}, {$inc: {seq: 1}}, {new: true}, function (err, seq) {
+                          if (err) console.log(err);
+                          newBooking._id = seq.value.seq;
+                          
+                          User.findOne({_id: newBooking.user}, {projection: {credits: 1}}, function (err, user) {
+                            if (!user) {
+                              res.json({message: "No such user"});
                             } else {
-                              newBooking.payed = parseInt(minOfferPrice / 2);
-
-                              Place.findOneAndUpdate({_id: id}, {$push: {bookings: seq.value.seq}}, function () {
-                                User.findOneAndUpdate({_id: newBooking.user}, {
-                                  $push: {bookings: seq.value.seq},
-                                  $inc: {credits: parseInt(minOfferPrice / (-2))}
+                              if (user.credits < minOfferPrice) {
+                                res.status(402);
+                                res.json({message: "Sorry, you have not enough credits to book place and take the cheapeste."});
+                              } else {
+                                newBooking.payed = parseInt(minOfferPrice / 2);
+  
+                                Place.findOneAndUpdate({_id: id}, {$push: {bookings: seq.value.seq}}, function () {
+                                  User.findOneAndUpdate({_id: newBooking.user}, {
+                                    $push: {bookings: seq.value.seq},
+                                    $inc: {credits: parseInt(minOfferPrice / (-2))}
+                                  });
+                                  Booking.insertOne(newBooking);
+                                  res.json({message: "Booked"});
                                 });
-                                Booking.insertOne(newBooking);
-                                res.json({message: "Booked"});
-                              });
+                              }
                             }
-                          }
+                          });
                         });
-                      });
-                     
+                        
+                      }
                     }
-                  }
+                  });
                 });
-              });
-            }
-          });
+              }
+            });
+          }
+          }
         }
       });
     } else {
