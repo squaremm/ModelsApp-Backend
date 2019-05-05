@@ -17,7 +17,7 @@ module.exports = function(app) {
 
   app.get('/api/place/:id/book/slots', function (req, res) {
     var id = parseInt(req.params.id);
-    var reqDate = req.body.date;
+    var reqDate = req.body.date || req.query.date;
     let day = moment(reqDate);
     let date =  moment(reqDate).format('DD-MM-YYYY');
     if(!date) {

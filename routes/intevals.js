@@ -84,6 +84,7 @@ validateIntervals = (intervals) => {
           isValid = false;
         }
       });
+      interval.slots = parseInt(interval.slots);
     });
     return isValid;
   }
