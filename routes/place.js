@@ -50,6 +50,7 @@ module.exports = function(app) {
     place.images = [];
     place.mainImage = null;
     place.instapage = null;
+    place.daysOffs = [];
 
     // Make all fields required
     if(!place.name || !place.type || !place.address || !place.photos || !place.location.coordinates ||
@@ -140,7 +141,19 @@ module.exports = function(app) {
       }
     });
   });
-
+  app.get('/api/place/:id/daysOffs', async (req, res) => {
+    var id = parseInt(req.params.id);
+      if(id){
+        var place = await Place.findOne({ _id : id });
+        if(place){
+          res.status(200).json({ daysOff: place.daysOffs});
+        }else{
+          res.status(404).json({message : "place not found"});
+        }
+      }else{
+        res.status(404).json({message : "invalid parameters"});
+      }
+  });
   // Get concrete Place and give it Offers, Bookings and Intervals from another entities
   app.get('/api/place/:id', function (req, res) {
     var id = parseInt(req.params.id);
@@ -202,7 +215,7 @@ module.exports = function(app) {
       getMoreData(places, res);
     });
   });
-
+  
   // Get all Places
   app.get('/api/place', function (req, res) {
     Place.find({}, { projection: { client: 0 }}).toArray( async function (err, places) {
@@ -286,6 +299,27 @@ module.exports = function(app) {
     res.status(404).json({message : "invalid parameters"});
       }
   });
+  app.post('/api/place/:id/daysOffs', async (req, res) => {
+    var id = parseInt(req.params.id);
+    let daysOffs = req.body.daysOffs;
+    if(daysOffs && validateDaysOff(daysOffs)){
+      if(id){
+        var place = await Place.findOne({ _id : id });
+        if(place){
+          place.daysOffs = daysOffs;
+          await Place.replaceOne({_id: place._id}, place);
+          res.status(200).json({ message: 'days off changed'});
+        }else{
+          res.status(404).json({message : "place not found"});
+        }
+      }else{
+        res.status(404).json({message : "invalid parameters"});
+      }
+    }else{
+      res.status(404).json({message : "collection not valid"});
+    }
+  });
+ 
   app.put('/api/place/:id/images/:imageId/main', async (req,res) => {
     var id = parseInt(req.params.id);
     var imageId = req.params.imageId;
@@ -306,8 +340,45 @@ module.exports = function(app) {
       res.status(404).json({message : "invalid parameters"});
     }
   });
+  
 };
 
+validateDaysOff = (daysOffs) => {
+  let isValid = true;
+  let requiredProperties = ['date', 'isWholeDay', 'intervals']
+  daysOffs.forEach(dayOff => {
+    let objectKeys = Object.keys(dayOff);
+    requiredProperties.forEach(key => {
+      let foundKey =  objectKeys.find(x=> x == key);
+      if(foundKey){
+        if(foundKey == 'date'){
+          if(moment(dayOff.date).isValid()){
+            dayOff.date = moment(dayOff.date).format('DD-MM-YYYY');
+          }else{
+            isValid = false;
+          }
+        }
+        if(foundKey == 'isWholeDay' && typeof dayOff.isWholeDay !== "boolean"){
+            isValid = false;
+        }
+        if(foundKey == 'intervals'){
+          dayOff['intervals'].forEach(interval => {
+            let intervalObjectKeys = Object.keys(interval);
+            if(intervalObjectKeys.find(y => y == 'start') && intervalObjectKeys.find(y => y == 'end')){
+              interval.start = moment(`2019-01-01 ${interval.start.replace('.',':')}`).format('HH.mm');
+              interval.end = moment(`2019-01-01 ${interval.end.replace('.',':')}`).format('HH.mm');
+            }else{
+              isValid = false;
+            }
+          });
+        }
+      }else{
+        isValid = false;
+      }
+    });
+  });
+  return isValid;
+}
 async function getMoreData(places, res) {
   var full = await Promise.all(places.map(async function (place) {
     var interval = await Interval.findOne({ place: place._id });

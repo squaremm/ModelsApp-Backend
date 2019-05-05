@@ -18,6 +18,7 @@ exports.createUser = async (req, res, next) => {
     const emailRegexp = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
     
     if(email && emailRegexp.test(email) && password && confirmPassword && password == confirmPassword){
+        email = email.toLowerCase();
         var user = await User.findOne({ email:  email});
         if(!user){
             var newUser = {
@@ -89,7 +90,7 @@ exports.loginUser = async (req, res, next) => {
     var password = req.body.password;
     const emailRegexp = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
     if(email && emailRegexp.test(email) &&  password){
-        
+        email = email.toLowerCase();
         var user = await User.findOne({ email:  email});
         
         var isTempPassword = Boolean(user.temporaryPassword && bcrypt.compareSync(password, user.temporaryPassword)); //user has temporary password so he forgot his current one

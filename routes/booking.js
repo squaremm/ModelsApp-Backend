@@ -31,11 +31,18 @@ module.exports = function(app) {
             Interval.findOne({ place: place._id }, async function (err, intervals) {
               if(!intervals) {
                 res.json({ message: "This place has no booking intervals" });
-              } else {
+              } else { 
+                let dayOff = null;
+                if(place.daysOffs) dayOff = place.daysOffs.find(x=> x.date == date);
+
                 var newArr = await Promise.all(intervals.intervals.map(async function (interval) {
                   if(interval.day == day.format('dddd')){
-                    var taken = await Booking.countDocuments({ place: id, date: date, startTime: interval.start, day: interval.day });
-                    interval.free = interval.slots - taken;
+                    if(dayOff && (dayOff.isWholeDay || dayOff.intervals.filter(x=>x.start == interval.start && x.end == interval.end).length > 0)){
+                      interval.free = 0;
+                    }else{
+                      var taken = await Booking.countDocuments({ place: id, date: date, startTime: interval.start, day: interval.day });
+                      interval.free = interval.slots - taken;
+                    }
                     return interval;
                   }
                 }));
