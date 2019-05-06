@@ -74,11 +74,11 @@ module.exports = function(app) {
     var offerId = parseInt(req.params.id);
     var bookingId = parseInt(req.params.bookingId);
     if(offerId && bookingId){
-      Offer.findOne({ _id: offerId })
+      await Offer.findOne({ _id: offerId })
         .then(offer => {
           if(!offer)  res.status(404).json({message: "offer not found"});
-          Booking.findOne({_id: bookingId})
-            .then(booking => {
+          await Booking.findOne({_id: bookingId})
+            .then(async booking => {
               if(!booking) res.status(404).json({message: "booking not found"});
                 var offerActions = booking.offerActions;
                 //check if user arleady go to choose action for particular offer
@@ -99,7 +99,7 @@ module.exports = function(app) {
                       }
                     })
                   };
-                  Booking.findOneAndUpdate({_id: bookingId}, { $push : { offerActions: offerAction }})
+                 await Booking.findOneAndUpdate({_id: bookingId}, { $push : { offerActions: offerAction }})
                     .then(()=>{
                     res.status(200).json(offerAction.actions);
                   })
@@ -548,17 +548,21 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
       if(offer){
       var form = new multiparty.Form();
       form.parse(req, async function (err, fields, files) {
-        files = files.images;
-        for (file of files) {
-          await imageUplader.uploadImage(file.path, 'offers', offer._id)
-            .then(async (newImage) =>{
-              await Offer.findOneAndUpdate({ _id: id }, { $push: { images: newImage } })
-            })
-            .catch((err) => {
-              console.log(err);
-            });
+        if(files){
+          files = files.images;
+          for (file of files) {
+            await imageUplader.uploadImage(file.path, 'offers', offer._id)
+              .then(async (newImage) =>{
+                await Offer.findOneAndUpdate({ _id: id }, { $push: { images: newImage } })
+              })
+              .catch((err) => {
+                console.log(err);
+              });
+          }
+          res.status(200).json({message: "ok"});
+        }else{
+          res.status(400).json({message : 'no files added'});
         }
-        res.status(200).json({message: "ok"});
       });
     }else{
       res.status(404).json({message : "offer not found" });

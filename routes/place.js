@@ -83,43 +83,47 @@ module.exports = function(app) {
       if(!place) {
         res.json({ message: "No such place" });
       } else {
+        if(!newPlace){
+          res.status(500).json({message : "invalid body"})
+        }else{
 
-        if(newPlace.phone !== place.phone && newPlace.phone) place.phone = newPlace.phone;
-        if(newPlace.instapage !== place.instapage && newPlace.instapage) place.instapage = newPlace.instapage;
-        if(newPlace.name !== place.name && newPlace.name) place.name = newPlace.name;
-        if(newPlace.type !== place.type && newPlace.type) place.type = newPlace.type;
-        if(newPlace.address !== place.address && newPlace.address) place.address = newPlace.address;
-        if(newPlace.photos !== place.photos && newPlace.photos) place.photos = newPlace.photos;
-        if(newPlace.description !== place.description && newPlace.description) place.description = newPlace.description;
-        if(newPlace.slots !== place.slots && newPlace.slots) place.slots = parseInt(newPlace.slots);
-        if(newPlace.level !== place.level && newPlace.level) place.level = parseInt(newPlace.level);
-        if(newPlace.socials) {
-          if(newPlace.socials.facebook !== place.socials.facebook && newPlace.socials.facebook) place.socials.facebook = newPlace.socials.facebook;
-          if(newPlace.socials.google !== place.socials.google && newPlace.socials.google) place.socials.google = newPlace.socials.google;
-          if(newPlace.socials.tripAdvisor !== place.socials.tripAdvisor && newPlace.socials.tripAdvisor) place.socials.tripAdvisor = newPlace.socials.tripAdvisor;
-          if(newPlace.socials.yelp !== place.socials.yelp && newPlace.socials.yelp) place.socials.yelp = newPlace.socials.yelp;
-          if(newPlace.socials.instagram !== place.socials.instagram && newPlace.socials.instagram) place.socials.instagram = newPlace.socials.instagram;
-        }
-        if(newPlace.schedule) {
-          if(newPlace.schedule.monday !== place.schedule.monday && newPlace.schedule.monday) place.schedule.monday = newPlace.schedule.monday;
-          if(newPlace.schedule.tuesday !== place.schedule.tuesday && newPlace.schedule.tuesday) place.schedule.tuesday = newPlace.schedule.tuesday;
-          if(newPlace.schedule.wednesday !== place.schedule.wednesday && newPlace.schedule.wednesday) place.schedule.wednesday = newPlace.schedule.wednesday;
-          if(newPlace.schedule.thursday !== place.schedule.thursday && newPlace.schedule.thursday) place.schedule.thursday = newPlace.schedule.thursday;
-          if(newPlace.schedule.friday !== place.schedule.friday && newPlace.schedule.friday) place.schedule.friday = newPlace.schedule.friday;
-          if(newPlace.schedule.saturday !== place.schedule.saturday && newPlace.schedule.saturday) place.schedule.saturday = newPlace.schedule.saturday;
-          if(newPlace.schedule.sunday !== place.schedule.sunday && newPlace.schedule.sunday) place.schedule.sunday = newPlace.schedule.sunday;
-        }
-        if(newPlace.location) {
-          if(newPlace.location.coordinates[0] !== place.location.coordinates[0] && newPlace.location.coordinates[0]) place.location.coordinates[0] = parseFloat(newPlace.location.coordinates[0]);
-          if(newPlace.location.coordinates[1] !== place.location.coordinates[1] && newPlace.location.coordinates[1]) place.location.coordinates[1] = parseFloat(newPlace.location.coordinates[1]);
-        }
-        
-        if(newPlace.photo) place.photos.push(newPlace.photo);
-        if(newPlace.photos) place.photos.concat(newPlace.photos);
+          if(newPlace.phone !== place.phone && newPlace.phone) place.phone = newPlace.phone;
+          if(newPlace.instapage !== place.instapage && newPlace.instapage) place.instapage = newPlace.instapage;
+          if(newPlace.name !== place.name && newPlace.name) place.name = newPlace.name;
+          if(newPlace.type !== place.type && newPlace.type) place.type = newPlace.type;
+          if(newPlace.address !== place.address && newPlace.address) place.address = newPlace.address;
+          if(newPlace.photos !== place.photos && newPlace.photos) place.photos = newPlace.photos;
+          if(newPlace.description !== place.description && newPlace.description) place.description = newPlace.description;
+          if(newPlace.slots !== place.slots && newPlace.slots) place.slots = parseInt(newPlace.slots);
+          if(newPlace.level !== place.level && newPlace.level) place.level = parseInt(newPlace.level);
+          if(newPlace.socials) {
+            if(newPlace.socials.facebook !== place.socials.facebook && newPlace.socials.facebook) place.socials.facebook = newPlace.socials.facebook;
+            if(newPlace.socials.google !== place.socials.google && newPlace.socials.google) place.socials.google = newPlace.socials.google;
+            if(newPlace.socials.tripAdvisor !== place.socials.tripAdvisor && newPlace.socials.tripAdvisor) place.socials.tripAdvisor = newPlace.socials.tripAdvisor;
+            if(newPlace.socials.yelp !== place.socials.yelp && newPlace.socials.yelp) place.socials.yelp = newPlace.socials.yelp;
+            if(newPlace.socials.instagram !== place.socials.instagram && newPlace.socials.instagram) place.socials.instagram = newPlace.socials.instagram;
+          }
+          if(newPlace.schedule) {
+            if(newPlace.schedule.monday !== place.schedule.monday && newPlace.schedule.monday) place.schedule.monday = newPlace.schedule.monday;
+            if(newPlace.schedule.tuesday !== place.schedule.tuesday && newPlace.schedule.tuesday) place.schedule.tuesday = newPlace.schedule.tuesday;
+            if(newPlace.schedule.wednesday !== place.schedule.wednesday && newPlace.schedule.wednesday) place.schedule.wednesday = newPlace.schedule.wednesday;
+            if(newPlace.schedule.thursday !== place.schedule.thursday && newPlace.schedule.thursday) place.schedule.thursday = newPlace.schedule.thursday;
+            if(newPlace.schedule.friday !== place.schedule.friday && newPlace.schedule.friday) place.schedule.friday = newPlace.schedule.friday;
+            if(newPlace.schedule.saturday !== place.schedule.saturday && newPlace.schedule.saturday) place.schedule.saturday = newPlace.schedule.saturday;
+            if(newPlace.schedule.sunday !== place.schedule.sunday && newPlace.schedule.sunday) place.schedule.sunday = newPlace.schedule.sunday;
+          }
+          if(newPlace.location) {
+            if(newPlace.location.coordinates[0] !== place.location.coordinates[0] && newPlace.location.coordinates[0]) place.location.coordinates[0] = parseFloat(newPlace.location.coordinates[0]);
+            if(newPlace.location.coordinates[1] !== place.location.coordinates[1] && newPlace.location.coordinates[1]) place.location.coordinates[1] = parseFloat(newPlace.location.coordinates[1]);
+          }
+          
+          if(newPlace.photo) place.photos.push(newPlace.photo);
+          if(newPlace.photos) place.photos.concat(newPlace.photos);
 
-        Place.replaceOne({_id: id }, place, function () {
-          res.json({ message: "Place updated" });
-        });
+          Place.replaceOne({_id: id }, place, function () {
+            res.json({ message: "Place updated" });
+          });
+        }
       }
     });
   });
@@ -280,17 +284,21 @@ module.exports = function(app) {
       if(place){
       var form = new multiparty.Form();
       form.parse(req, async function (err, fields, files) {
-        files = files.images;
-        for (file of files) {
-          await imageUplader.uploadImage(file.path, 'places', place._id)
-            .then(async (newImage) =>{
-              await Place.findOneAndUpdate({ _id: id }, { $push: { images: newImage } })
-            })
-            .catch((err) => {
-              console.log(err);
-            });
+        if(files){
+          files = files.images;
+          for (file of files) {
+            await imageUplader.uploadImage(file.path, 'places', place._id)
+              .then(async (newImage) =>{
+                await Place.findOneAndUpdate({ _id: id }, { $push: { images: newImage } })
+              })
+              .catch((err) => {
+                console.log(err);
+              });
+          }
+          res.status(200).json({message: "ok"});
+        }else{
+          res.status(400).json({message : "no files added"});
         }
-        res.status(200).json({message: "ok"});
       });
     }else{
       res.status(404).json({message : "Place not found" });

@@ -129,17 +129,19 @@ module.exports = function(app) {
     Booking.find({ user: id }).toArray(async function (err, books) {
       var full = await Promise.all(books.map(async function (book) {
         book.place = await Place.findOne({ _id: book.place }, { projection: { name: 1, address: 1, photos: 1, socials: 1, location: 1, address: 1 }});
-        if(book.place.photos) {
-          book.place.photo = book.place.photos[0];
-          delete book.place.photos;
-        }
-
-        if(book.place.socials.instagram !== undefined && book.place.socials.instagram !== null) {
-          var match = book.place.socials.instagram.match(/^.*instagram.com\/(.*)\/?.*/i);
-          if(match) {
-            book.place.instaUser = match[1].replace('/', '');
-          } else {
-            book.place.instaUser = '';
+        if(book.place){
+          if(book.place.photos) {
+            book.place.photo = book.place.photos[0];
+            delete book.place.photos;
+          }
+  
+          if(book.place.socials.instagram !== undefined && book.place.socials.instagram !== null) {
+            var match = book.place.socials.instagram.match(/^.*instagram.com\/(.*)\/?.*/i);
+            if(match) {
+              book.place.instaUser = match[1].replace('/', '');
+            } else {
+              book.place.instaUser = '';
+            }
           }
         }
 
@@ -333,19 +335,24 @@ module.exports = function(app) {
       if(user){
       var form = new multiparty.Form();
       form.parse(req, async function (err, fields, files) {
-        files = files.images;
-        var addedImages = [];
-        for (file of files) {
-          await imageUplader.uploadImage(file.path, 'users', user._id)
-            .then(async (newImage) =>{
-              await User.findOneAndUpdate({ _id: id }, { $push: { images: newImage } })
-              addedImages.push(newImage);
-            })
-            .catch((err) => {
-              console.log(err);
-            });
+        if(files){
+          files = files.images;
+          var addedImages = [];
+          for (file of files) {
+            await imageUplader.uploadImage(file.path, 'users', user._id)
+              .then(async (newImage) =>{
+                await User.findOneAndUpdate({ _id: id }, { $push: { images: newImage } })
+                addedImages.push(newImage);
+              })
+              .catch((err) => {
+                console.log(err);
+              });
+          }
+          res.status(200).json({message: "ok", images: addedImages});
+        }else{
+          res.status(400).json({message:  'no files added'});
         }
-        res.status(200).json({message: "ok", images: addedImages});
+        
       });
     }else{
       res.status(404).json({message : "offer not found" });
