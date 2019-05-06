@@ -75,7 +75,7 @@ module.exports = function(app) {
     var bookingId = parseInt(req.params.bookingId);
     if(offerId && bookingId){
       await Offer.findOne({ _id: offerId })
-        .then(offer => {
+        .then(async offer => {
           if(!offer)  res.status(404).json({message: "offer not found"});
           await Booking.findOne({_id: bookingId})
             .then(async booking => {
