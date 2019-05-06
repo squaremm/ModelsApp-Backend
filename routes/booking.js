@@ -246,8 +246,8 @@ module.exports = function(app) {
                     week: fullDate.isoWeek(),
                     day: moment(fullDate).format('dddd'),
                     payed: Math.min(...offers.map(x => x.price)) / 2,
-                    startTime = choosenInterval.start,
-                    endTime = choosenInterval.end
+                    startTime: choosenInterval.start,
+                    endTime: choosenInterval.end
                   }
                   await Booking.insertOne(newBooking);
                   await User.findOneAndUpdate({_id: newBooking.user}, {
