@@ -9,11 +9,9 @@ var imageUplader = require('../lib/imageUplader');
 var multiparty = require('multiparty');
 var pushProvider = require('../lib/pushProvider');
 
-var apnProvider = new apn.Provider({
-  production: false,
-});
-
-
+var path = require('path');
+var fcm = require('fcm-notification');
+var FCM = new fcm(path.join(__dirname, '../key.json'));
 
 var User, Booking, Offer, Place, OfferPost;
 db.getInstance(function (p_db) {
@@ -26,6 +24,27 @@ db.getInstance(function (p_db) {
 
 module.exports = function(app) {
 
+  app.get('/api/android/test', async (req, res) => {
+    var message = {
+      data: {    //This is only optional, you can send any data
+          score: '850',
+          time: '2:45'
+      },
+      notification:{
+          title : 'Title of notification',
+          body : 'Body of notification'
+      },
+      token: 'xxx'
+      };
+
+    FCM.send(message, function(err, response) {
+      if(err){
+          console.log('error found', err);
+      }else {
+          console.log('response here', response);
+      }
+  });
+});
   // Get the current (authenticated) User
   app.get('/api/user/current', middleware.isAuthorized, async function (req, res) {
     var user = await req.user;
@@ -43,7 +62,7 @@ module.exports = function(app) {
       }
     });
   });
-
+  
   // Get Users by specific query
   app.get('/api/user', function (req, res) {
     var query = {};
