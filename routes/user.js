@@ -9,9 +9,9 @@ var imageUplader = require('../lib/imageUplader');
 var multiparty = require('multiparty');
 var pushProvider = require('../lib/pushProvider');
 
-var path = require('path');
-var fcm = require('fcm-notification');
-var FCM = new fcm(path.join(__dirname, '../key.json'));
+// var path = require('path');
+// var fcm = require('fcm-notification');
+// var FCM = new fcm(path.join(__dirname, '../key.json'));
 
 var User, Booking, Offer, Place, OfferPost;
 db.getInstance(function (p_db) {
@@ -139,6 +139,41 @@ module.exports = function(app) {
     var newUser = req.body;
 
     editUser(id, newUser, res);
+  });
+
+  app.put('/api/user/:id/device', async (req,res) => {
+    let id = parseInt(req.params.id);
+    let uid = req.body.uid;
+    let newToken = req.body.newToken;
+    let oldToken = req.body.oldToken;
+    if(id){
+      let user =  await User.findOne({ _id: id });
+      if(user){
+        let foundDevices  = user.devices.filter(x => {
+          if((typeof x === Object || typeof x == 'object') && x.type.toLowerCase() == 'android' && x.uid == uid) return true;
+          else return false;
+        });
+        //new device that was not use before
+        if(foundDevices.length == 0){
+        let newDevice = {
+            type: 'android',
+            uid: uid,
+            token: newToken,
+            changedAt: moment().format('YYYY-MM-DD HH:mm:ss')
+           };
+        await User.findOneAndUpdate({_id: user._id}, { $push :{ devices : newDevice } } )
+        }else{
+          await User.findOneAndUpdate({_id: user._id}, 
+            { $set :{ 'devices.$[t].token' : newToken, 'devices.$[t].changedAt': moment().format('YYYY-MM-DD HH:mm:ss') } },
+            { arrayFilters: [ {"t.uid": uid , "t.token": oldToken } ]} );
+        }
+      res.status(200).json({message: "ok"});
+      }else{
+        res.status(404).json({message:  "user not found"});
+      }
+    }else{
+      res.status(400).json({message:  "invalid parameters"});
+    }
   });
 
   // Get the bookings belonging to specific User
