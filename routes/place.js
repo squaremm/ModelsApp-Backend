@@ -17,7 +17,20 @@ db.getInstance(function (p_db) {
 });
 
 module.exports = function(app) {
-
+  
+  app.get('/api/place/:id/daysOffs', async (req, res) => {
+    var id = parseInt(req.params.id);
+      if(id){
+        var place = await Place.findOne({ _id : id });
+        if(place){
+          res.status(200).json({ daysOff: place.daysOffs});
+        }else{
+          res.status(404).json({message : "place not found"});
+        }
+      }else{
+        res.status(404).json({message : "invalid parameters"});
+      }
+  });
   // New Place
   app.post('/api/place', middleware.isAdmin, function (req, res) {
 
@@ -145,19 +158,7 @@ module.exports = function(app) {
       }
     });
   });
-  app.get('/api/place/:id/daysOffs', async (req, res) => {
-    var id = parseInt(req.params.id);
-      if(id){
-        var place = await Place.findOne({ _id : id });
-        if(place){
-          res.status(200).json({ daysOff: place.daysOffs});
-        }else{
-          res.status(404).json({message : "place not found"});
-        }
-      }else{
-        res.status(404).json({message : "invalid parameters"});
-      }
-  });
+ 
   // Get concrete Place and give it Offers, Bookings and Intervals from another entities
   app.get('/api/place/:id', function (req, res) {
     var id = parseInt(req.params.id);

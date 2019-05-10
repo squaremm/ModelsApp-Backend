@@ -600,9 +600,8 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
     if(id){
       var offer = await Offer.findOne({ _id : id});
       if(offer){
-        Offer.replaceOne({ _id : id }, reqOffer, async (status) => {
-          res.status(200).json(await Offer.findOne({ _id: id}));
-        });
+        await Offer.replaceOne({ _id : id }, reqOffer);
+        res.status(200).json(await Offer.findOne({ _id: id}));
       }else{
         res.status(404).json({message : "offer not found"});
       }
