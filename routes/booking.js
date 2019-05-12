@@ -1,5 +1,6 @@
 var db = require('../config/connection');
 var moment = require('moment');
+var sendGrid = require('../lib/sendGrid');
 
 var User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
 db.getInstance(function (p_db) {
@@ -380,8 +381,12 @@ module.exports = function(app) {
                                   $push: {bookings: seq.value.seq},
                                   $inc: {credits: parseInt(minOfferPrice / (-2))}
                                 });
-                                Booking.insertOne(newBooking);
-                                res.json({message: "Booked"});
+                                Booking.insertOne(newBooking).then((booking) => {
+                                  sendBookingEmailMessage(place, newBooking).then(()=> {
+                                    res.json({message: "Booked"});
+                                  });
+                                });
+                                //res.json({message: "Booked"});
                               });
                             }
                           }
@@ -426,4 +431,17 @@ module.exports = function(app) {
       }
     });
   });
+  sendBookingEmailMessage = async (place, booking) => {
+    let listToSend = [];
+    var user = await User.findOne({_id: booking.user});
+    let line = `booking date: ${ booking.date }, time:  ${booking.startTime }-${booking.endTime },`;
+    if(user){
+      line += ` user:  ${user.email }, ${user.name } ${user.surname } `;
+    }
+    listToSend.push(line);
+
+    place.notificationRecivers.forEach(async (reciver) => {
+      await sendGrid.sendBookingCreated(reciver.email, listToSend, place);
+    });
+  }
 }
