@@ -17,7 +17,20 @@ db.getInstance(function (p_db) {
 });
 
 module.exports = function(app) {
-
+  
+  app.get('/api/place/:id/daysOffs', async (req, res) => {
+    var id = parseInt(req.params.id);
+      if(id){
+        var place = await Place.findOne({ _id : id });
+        if(place){
+          res.status(200).json({ daysOff: place.daysOffs});
+        }else{
+          res.status(404).json({message : "place not found"});
+        }
+      }else{
+        res.status(404).json({message : "invalid parameters"});
+      }
+  });
   // New Place
   app.post('/api/place', middleware.isAdmin, function (req, res) {
 
@@ -50,6 +63,7 @@ module.exports = function(app) {
     place.images = [];
     place.mainImage = null;
     place.instapage = null;
+    place.daysOffs = [];
 
     // Make all fields required
     if(!place.name || !place.type || !place.address || !place.photos || !place.location.coordinates ||
@@ -82,43 +96,47 @@ module.exports = function(app) {
       if(!place) {
         res.json({ message: "No such place" });
       } else {
+        if(!newPlace){
+          res.status(500).json({message : "invalid body"})
+        }else{
 
-        if(newPlace.phone !== place.phone && newPlace.phone) place.phone = newPlace.phone;
-        if(newPlace.instapage !== place.instapage && newPlace.instapage) place.instapage = newPlace.instapage;
-        if(newPlace.name !== place.name && newPlace.name) place.name = newPlace.name;
-        if(newPlace.type !== place.type && newPlace.type) place.type = newPlace.type;
-        if(newPlace.address !== place.address && newPlace.address) place.address = newPlace.address;
-        if(newPlace.photos !== place.photos && newPlace.photos) place.photos = newPlace.photos;
-        if(newPlace.description !== place.description && newPlace.description) place.description = newPlace.description;
-        if(newPlace.slots !== place.slots && newPlace.slots) place.slots = parseInt(newPlace.slots);
-        if(newPlace.level !== place.level && newPlace.level) place.level = parseInt(newPlace.level);
-        if(newPlace.socials) {
-          if(newPlace.socials.facebook !== place.socials.facebook && newPlace.socials.facebook) place.socials.facebook = newPlace.socials.facebook;
-          if(newPlace.socials.google !== place.socials.google && newPlace.socials.google) place.socials.google = newPlace.socials.google;
-          if(newPlace.socials.tripAdvisor !== place.socials.tripAdvisor && newPlace.socials.tripAdvisor) place.socials.tripAdvisor = newPlace.socials.tripAdvisor;
-          if(newPlace.socials.yelp !== place.socials.yelp && newPlace.socials.yelp) place.socials.yelp = newPlace.socials.yelp;
-          if(newPlace.socials.instagram !== place.socials.instagram && newPlace.socials.instagram) place.socials.instagram = newPlace.socials.instagram;
-        }
-        if(newPlace.schedule) {
-          if(newPlace.schedule.monday !== place.schedule.monday && newPlace.schedule.monday) place.schedule.monday = newPlace.schedule.monday;
-          if(newPlace.schedule.tuesday !== place.schedule.tuesday && newPlace.schedule.tuesday) place.schedule.tuesday = newPlace.schedule.tuesday;
-          if(newPlace.schedule.wednesday !== place.schedule.wednesday && newPlace.schedule.wednesday) place.schedule.wednesday = newPlace.schedule.wednesday;
-          if(newPlace.schedule.thursday !== place.schedule.thursday && newPlace.schedule.thursday) place.schedule.thursday = newPlace.schedule.thursday;
-          if(newPlace.schedule.friday !== place.schedule.friday && newPlace.schedule.friday) place.schedule.friday = newPlace.schedule.friday;
-          if(newPlace.schedule.saturday !== place.schedule.saturday && newPlace.schedule.saturday) place.schedule.saturday = newPlace.schedule.saturday;
-          if(newPlace.schedule.sunday !== place.schedule.sunday && newPlace.schedule.sunday) place.schedule.sunday = newPlace.schedule.sunday;
-        }
-        if(newPlace.location) {
-          if(newPlace.location.coordinates[0] !== place.location.coordinates[0] && newPlace.location.coordinates[0]) place.location.coordinates[0] = parseFloat(newPlace.location.coordinates[0]);
-          if(newPlace.location.coordinates[1] !== place.location.coordinates[1] && newPlace.location.coordinates[1]) place.location.coordinates[1] = parseFloat(newPlace.location.coordinates[1]);
-        }
-        
-        if(newPlace.photo) place.photos.push(newPlace.photo);
-        if(newPlace.photos) place.photos.concat(newPlace.photos);
+          if(newPlace.phone !== place.phone && newPlace.phone) place.phone = newPlace.phone;
+          if(newPlace.instapage !== place.instapage && newPlace.instapage) place.instapage = newPlace.instapage;
+          if(newPlace.name !== place.name && newPlace.name) place.name = newPlace.name;
+          if(newPlace.type !== place.type && newPlace.type) place.type = newPlace.type;
+          if(newPlace.address !== place.address && newPlace.address) place.address = newPlace.address;
+          if(newPlace.photos !== place.photos && newPlace.photos) place.photos = newPlace.photos;
+          if(newPlace.description !== place.description && newPlace.description) place.description = newPlace.description;
+          if(newPlace.slots !== place.slots && newPlace.slots) place.slots = parseInt(newPlace.slots);
+          if(newPlace.level !== place.level && newPlace.level) place.level = parseInt(newPlace.level);
+          if(newPlace.socials) {
+            if(newPlace.socials.facebook !== place.socials.facebook && newPlace.socials.facebook) place.socials.facebook = newPlace.socials.facebook;
+            if(newPlace.socials.google !== place.socials.google && newPlace.socials.google) place.socials.google = newPlace.socials.google;
+            if(newPlace.socials.tripAdvisor !== place.socials.tripAdvisor && newPlace.socials.tripAdvisor) place.socials.tripAdvisor = newPlace.socials.tripAdvisor;
+            if(newPlace.socials.yelp !== place.socials.yelp && newPlace.socials.yelp) place.socials.yelp = newPlace.socials.yelp;
+            if(newPlace.socials.instagram !== place.socials.instagram && newPlace.socials.instagram) place.socials.instagram = newPlace.socials.instagram;
+          }
+          if(newPlace.schedule) {
+            if(newPlace.schedule.monday !== place.schedule.monday && newPlace.schedule.monday) place.schedule.monday = newPlace.schedule.monday;
+            if(newPlace.schedule.tuesday !== place.schedule.tuesday && newPlace.schedule.tuesday) place.schedule.tuesday = newPlace.schedule.tuesday;
+            if(newPlace.schedule.wednesday !== place.schedule.wednesday && newPlace.schedule.wednesday) place.schedule.wednesday = newPlace.schedule.wednesday;
+            if(newPlace.schedule.thursday !== place.schedule.thursday && newPlace.schedule.thursday) place.schedule.thursday = newPlace.schedule.thursday;
+            if(newPlace.schedule.friday !== place.schedule.friday && newPlace.schedule.friday) place.schedule.friday = newPlace.schedule.friday;
+            if(newPlace.schedule.saturday !== place.schedule.saturday && newPlace.schedule.saturday) place.schedule.saturday = newPlace.schedule.saturday;
+            if(newPlace.schedule.sunday !== place.schedule.sunday && newPlace.schedule.sunday) place.schedule.sunday = newPlace.schedule.sunday;
+          }
+          if(newPlace.location) {
+            if(newPlace.location.coordinates[0] !== place.location.coordinates[0] && newPlace.location.coordinates[0]) place.location.coordinates[0] = parseFloat(newPlace.location.coordinates[0]);
+            if(newPlace.location.coordinates[1] !== place.location.coordinates[1] && newPlace.location.coordinates[1]) place.location.coordinates[1] = parseFloat(newPlace.location.coordinates[1]);
+          }
+          
+          if(newPlace.photo) place.photos.push(newPlace.photo);
+          if(newPlace.photos) place.photos.concat(newPlace.photos);
 
-        Place.replaceOne({_id: id }, place, function () {
-          res.json({ message: "Place updated" });
-        });
+          Place.replaceOne({_id: id }, place, function () {
+            res.json({ message: "Place updated" });
+          });
+        }
       }
     });
   });
@@ -140,7 +158,7 @@ module.exports = function(app) {
       }
     });
   });
-
+ 
   // Get concrete Place and give it Offers, Bookings and Intervals from another entities
   app.get('/api/place/:id', function (req, res) {
     var id = parseInt(req.params.id);
@@ -202,7 +220,7 @@ module.exports = function(app) {
       getMoreData(places, res);
     });
   });
-
+  
   // Get all Places
   app.get('/api/place', function (req, res) {
     Place.find({}, { projection: { client: 0 }}).toArray( async function (err, places) {
@@ -267,17 +285,21 @@ module.exports = function(app) {
       if(place){
       var form = new multiparty.Form();
       form.parse(req, async function (err, fields, files) {
-        files = files.images;
-        for (file of files) {
-          await imageUplader.uploadImage(file.path, 'places', place._id)
-            .then(async (newImage) =>{
-              await Place.findOneAndUpdate({ _id: id }, { $push: { images: newImage } })
-            })
-            .catch((err) => {
-              console.log(err);
-            });
+        if(files){
+          files = files.images;
+          for (file of files) {
+            await imageUplader.uploadImage(file.path, 'places', place._id)
+              .then(async (newImage) =>{
+                await Place.findOneAndUpdate({ _id: id }, { $push: { images: newImage } })
+              })
+              .catch((err) => {
+                console.log(err);
+              });
+          }
+          res.status(200).json({message: "ok"});
+        }else{
+          res.status(400).json({message : "no files added"});
         }
-        res.status(200).json({message: "ok"});
       });
     }else{
       res.status(404).json({message : "Place not found" });
@@ -286,6 +308,27 @@ module.exports = function(app) {
     res.status(404).json({message : "invalid parameters"});
       }
   });
+  app.post('/api/place/:id/daysOffs', async (req, res) => {
+    var id = parseInt(req.params.id);
+    let daysOffs = req.body.daysOffs;
+    if(daysOffs && validateDaysOff(daysOffs)){
+      if(id){
+        var place = await Place.findOne({ _id : id });
+        if(place){
+          place.daysOffs = daysOffs;
+          await Place.replaceOne({_id: place._id}, place);
+          res.status(200).json({ message: 'days off changed'});
+        }else{
+          res.status(404).json({message : "place not found"});
+        }
+      }else{
+        res.status(404).json({message : "invalid parameters"});
+      }
+    }else{
+      res.status(404).json({message : "collection not valid"});
+    }
+  });
+ 
   app.put('/api/place/:id/images/:imageId/main', async (req,res) => {
     var id = parseInt(req.params.id);
     var imageId = req.params.imageId;
@@ -306,8 +349,45 @@ module.exports = function(app) {
       res.status(404).json({message : "invalid parameters"});
     }
   });
+  
 };
 
+validateDaysOff = (daysOffs) => {
+  let isValid = true;
+  let requiredProperties = ['date', 'isWholeDay', 'intervals']
+  daysOffs.forEach(dayOff => {
+    let objectKeys = Object.keys(dayOff);
+    requiredProperties.forEach(key => {
+      let foundKey =  objectKeys.find(x=> x == key);
+      if(foundKey){
+        if(foundKey == 'date'){
+          if(moment(dayOff.date).isValid()){
+            dayOff.date = moment(dayOff.date).format('DD-MM-YYYY');
+          }else{
+            isValid = false;
+          }
+        }
+        if(foundKey == 'isWholeDay' && typeof dayOff.isWholeDay !== "boolean"){
+            isValid = false;
+        }
+        if(foundKey == 'intervals'){
+          dayOff['intervals'].forEach(interval => {
+            let intervalObjectKeys = Object.keys(interval);
+            if(intervalObjectKeys.find(y => y == 'start') && intervalObjectKeys.find(y => y == 'end')){
+              interval.start = moment(`2019-01-01 ${interval.start.replace('.',':')}`).format('HH.mm');
+              interval.end = moment(`2019-01-01 ${interval.end.replace('.',':')}`).format('HH.mm');
+            }else{
+              isValid = false;
+            }
+          });
+        }
+      }else{
+        isValid = false;
+      }
+    });
+  });
+  return isValid;
+}
 async function getMoreData(places, res) {
   var full = await Promise.all(places.map(async function (place) {
     var interval = await Interval.findOne({ place: place._id });

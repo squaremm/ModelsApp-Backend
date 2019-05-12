@@ -60,16 +60,25 @@ module.exports = function(app) {
       res.json(offers);
     });
   });
+  app.get('/api/place/:id/bookingOffers', (req,res) => {
+    var id = parseInt(req.params.id);
+    var start = req.body.start;
+    var end = req.body.end;
+
+    Offer.find({ place: id, start: start, end: end }).toArray(function (err, offers) {
+      res.json(offers);
+    });
+  });
 
   app.get('/api/offer/:id/booking/:bookingId/actions', async (req, res) =>{
     var offerId = parseInt(req.params.id);
     var bookingId = parseInt(req.params.bookingId);
     if(offerId && bookingId){
-      Offer.findOne({ _id: offerId })
-        .then(offer => {
+      await Offer.findOne({ _id: offerId })
+        .then(async offer => {
           if(!offer)  res.status(404).json({message: "offer not found"});
-          Booking.findOne({_id: bookingId})
-            .then(booking => {
+          await Booking.findOne({_id: bookingId})
+            .then(async booking => {
               if(!booking) res.status(404).json({message: "booking not found"});
                 var offerActions = booking.offerActions;
                 //check if user arleady go to choose action for particular offer
@@ -90,7 +99,7 @@ module.exports = function(app) {
                       }
                     })
                   };
-                  Booking.findOneAndUpdate({_id: bookingId}, { $push : { offerActions: offerAction }})
+                 await Booking.findOneAndUpdate({_id: bookingId}, { $push : { offerActions: offerAction }})
                     .then(()=>{
                     res.status(200).json(offerAction.actions);
                   })
@@ -146,69 +155,78 @@ module.exports = function(app) {
     });
 
   // Create the offer. Then wait for the post, admin's check of the post, and then close it
-  app.post('/api/place/:id/offer', function (req, res) {
+  app.post('/api/place/:id/offer', async function (req, res) {
     var id = parseInt(req.params.id);
-    if (req.body.name && id && req.body.userID && req.body.price && req.body.composition && req.body.credits && req.body.photo) {
-      var offer = {};
-      offer.name = req.body.name;
-      offer.place = id;
-      offer.user = parseInt(req.body.userID);
-      offer.price = parseInt(req.body.price);
-      offer.creationDate = moment().format('DD-MM-YYYY');
-      offer.composition = req.body.composition;
-      offer.credits = req.body.credits;
-      Object.keys(offer.credits).map(function (key) {
-        offer.credits[key] = parseInt(offer.credits[key]);
-      });
-      offer.photo = req.body.photo;
-      offer.post = null;
-      offer.closed = false;
-      offer.level = parseInt(req.body.level) || 4;
-      offer.images = [];
-      offer.mainImage = null;
+    var name = req.body.name
+    var userID = req.body.userID;
+    var composition =  req.body.composition;
+    var price = req.body.price;
+    var credits = req.body.credits;
+    let isIntervalsValid = await validateOfferIntervals(id,req.body.intervals);
 
-      User.findOne({ _id: offer.user }, { projection: { credits: 1 }}, function (err, user) {
-        if (!user) {
-          res.json({ message: "No such user" });
-        } else {
-            Counter.findOneAndUpdate(
-              {_id: "offerid"},
-              {$inc: {seq: 1}},
-              {new: true},
-              function (err, seq) {
-                if (err) console.log(err);
-                offer._id = seq.value.seq;
+    if (name && id && userID && price && composition && credits && isIntervalsValid) {
 
-                Place.findOneAndUpdate({_id: id}, {$push: {offers: seq.value.seq}}, function (err, place) {
-                  if (!place.value) {
-                    res.json({message: "No such place"});
-                  } else {
-                    User.findOneAndUpdate({_id: offer.user}, {$push: {offers: seq.value.seq}});
-                    Offer.insertOne(offer);
-                    
-                    User.find({ accepted : true }).toArray(async (err, users) => {
-                      OfferPost.distinct('user', { place: place.value._id }).then(async (posts) => {
-                        let devices = [];
-                        posts.forEach((post) => {
-                          var user = users.find(x=>x._id == post);
-                          if(user) devices.push(user.devices);
+        var offer = {};
+        offer.name = name;
+        offer.place = id;
+        offer.user = parseInt(userID);
+        offer.price = parseInt(price);
+        offer.creationDate = moment().format('DD-MM-YYYY');
+        offer.composition = composition;
+        offer.credits = credits;
+        Object.keys(offer.credits).map(function (key) {
+          offer.credits[key] = parseInt(offer.credits[key]);
+        });
+        offer.photo = req.body.photo;
+        offer.post = null;
+        offer.closed = false;
+        offer.level = parseInt(req.body.level) || 4;
+        offer.images = [];
+        offer.mainImage = null;
+        offer.intervals = req.body.intervals;
+  
+        User.findOne({ _id: offer.user }, { projection: { credits: 1 }}, function (err, user) {
+          if (!user) {
+            res.json({ message: "No such user" });
+          } else {
+              Counter.findOneAndUpdate(
+                {_id: "offerid"},
+                {$inc: {seq: 1}},
+                {new: true},
+                function (err, seq) {
+                  if (err) console.log(err);
+                  offer._id = seq.value.seq;
+  
+                 Place.findOneAndUpdate({_id: id}, {$push: {offers: seq.value.seq}}, async function (err, place) {
+                    if (!place.value) {
+                      res.json({message: "No such place"});
+                    } else {
+                    await User.findOneAndUpdate({_id: offer.user}, {$push: {offers: seq.value.seq}});
+                    await Offer.insertOne(offer);
+                      
+                    await User.find({ accepted : true }).toArray(async (err, users) => {
+                      await OfferPost.distinct('user', { place: place.value._id }).then(async (posts) => {
+                          let devices = [];
+                          for (post of posts){
+                            var user = users.find(x=>x._id == post);
+                            if(user) devices.push(user.devices);
+                          }
+                          if(devices.length > 0){
+                            devices = devices.reduce((a,b) => a.concat(b));
+                            await pushProvider.sendNewOfferNotification(devices, offer, place.value);
+                          }
                         });
-                        if(devices.length > 0){
-                          devices = devices.reduce((a,b) => a.concat(b));
-                          await pushProvider.sendNewOfferNotification(devices, offer, place.value);
-                        }
                       });
-                    });
-
-                    res.json({message: "Offer created"});
-                  }
-                });
-              }
-            );
-        }
-      });
+  
+                      res.json({message: "Offer created"});
+                    }
+                  });
+                }
+              );
+          }
+        });
     } else {
-      res.json({message: "Required fields are not fulfilled"});
+      res.json({message: "Required fields are not fulfilled, required are: name, userID, price, composition, credits, intervals and intervals must match to existing for a offer"});
     }
   });
 
@@ -523,17 +541,21 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
       if(offer){
       var form = new multiparty.Form();
       form.parse(req, async function (err, fields, files) {
-        files = files.images;
-        for (file of files) {
-          await imageUplader.uploadImage(file.path, 'offers', offer._id)
-            .then(async (newImage) =>{
-              await Offer.findOneAndUpdate({ _id: id }, { $push: { images: newImage } })
-            })
-            .catch((err) => {
-              console.log(err);
-            });
+        if(files){
+          files = files.images;
+          for (file of files) {
+            await imageUplader.uploadImage(file.path, 'offers', offer._id)
+              .then(async (newImage) =>{
+                await Offer.findOneAndUpdate({ _id: id }, { $push: { images: newImage } })
+              })
+              .catch((err) => {
+                console.log(err);
+              });
+          }
+          res.status(200).json({message: "ok"});
+        }else{
+          res.status(400).json({message : 'no files added'});
         }
-        res.status(200).json({message: "ok"});
       });
     }else{
       res.status(404).json({message : "offer not found" });
@@ -571,9 +593,8 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
     if(id){
       var offer = await Offer.findOne({ _id : id});
       if(offer){
-        Offer.replaceOne({ _id : id }, reqOffer, async (status) => {
-          res.status(200).json(await Offer.findOne({ _id: id}));
-        });
+        await Offer.replaceOne({ _id : id }, reqOffer);
+        res.status(200).json(await Offer.findOne({ _id: id}));
       }else{
         res.status(404).json({message : "offer not found"});
       }
@@ -582,3 +603,30 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
     }
   });
 };
+
+
+validateOfferIntervals = async (placeId,intervals) => {
+  let isValid = true;
+  if(intervals && Array.isArray(intervals)){
+    for (const interval of intervals) {
+      let intervalObjectKeys = Object.keys(interval);
+        if(intervalObjectKeys.find(y => y == 'start') && intervalObjectKeys.find(y => y == 'end')){
+          if(moment(`2019-01-01 ${interval.start.replace('.',':')}`).isValid() && moment(`2019-01-01 ${interval.end.replace('.',':')}`).isValid()){
+            interval.start = moment(`2019-01-01 ${interval.start.replace('.',':')}`).format('HH.mm');
+            interval.end = moment(`2019-01-01 ${interval.end.replace('.',':')}`).format('HH.mm');
+            var dbInterval = await Interval.findOne({place: placeId, intervals: { $elemMatch : { start: interval.start, end : interval.end } } });
+            if(!dbInterval){
+              isValid = false;
+            }
+          }else{
+            isValid = false;
+          }
+        }else{
+          isValid = false;
+        }
+      }
+  }else{
+    isValid = false;
+  }
+  return isValid;
+}

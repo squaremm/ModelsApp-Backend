@@ -34,7 +34,7 @@ function intervalFuncCheckBookingExpired (db) {
                             var diff = tommorow.diff(moment(), 'days');
                             if (diff < 0 && !booking.closed) {
                                 //update booking 
-                                Booking.findOneAndUpdate({_id: booking._id}, {$set: {closed: true}}, async (x) => {
+                                Booking.findOneAndUpdate({_id: booking._id}, {$set: {closed: true}}).then(async (x) => {
                                         var user = users.find(user => user._id == booking.user);
                                         if(user){
                                             console.log('send notification');

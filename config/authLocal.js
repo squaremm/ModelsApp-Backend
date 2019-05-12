@@ -49,7 +49,7 @@ module.exports = function (passport) {
                     photos: [],
                     location: {
                       type: "Point",
-                      coordinates: [body.coordinates[0], body.coordinates[1]]
+                      coordinates: [parseFloat(body.coordinates[0]), parseFloat(body.coordinates[1])]
                     },
                     socials: {
                       facebook: "",
@@ -69,7 +69,8 @@ module.exports = function (passport) {
                     notificationRecivers: [],
                     images: [],
                     mainImage: null,
-                    instapage: null
+                    instapage: null,
+                    daysOffs: []
                   };
                   console.log(newPlace)
                   Place.insertOne(newPlace);
