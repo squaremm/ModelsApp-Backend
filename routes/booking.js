@@ -256,6 +256,7 @@ module.exports = function(app) {
                     $push: {bookings: newBooking._id},
                     $inc: {credits: parseInt(-1 * newBooking.payed)}
                   });
+                  await sendBookingEmailMessage(place, newBooking);
                   res.status(200).json({message: "Booked"});
                 }else{
                   res.status(400).json({message:  'not enaught slots'});
@@ -385,16 +386,8 @@ module.exports = function(app) {
       Interval.findOne({place: id}, async function (err, interval) {
         if (!interval || !interval.intervals[intervalNum]) {
           res.status(404).json({message: "No intervals for this place"});
-        } else {
-          if(!interval.intervals[intervalNum].day || interval.intervals[intervalNum].day !== newBooking.day){
-            res.status(400).json({message: "choosend date not match for inteval"});
-          }else{
-            let choosenInterval = interval.intervals[intervalNum];
-            var taken = await Booking.countDocuments({ place: id, date: newBooking.date , startTime: choosenInterval.start, day: choosenInterval.day });
-            free = choosenInterval.slots - taken;
-            if(free == 0){
-              res.status(400).json({message: "there is no enough slots to make booking"});
-            }else{
+        } 
+        else {
               newBooking.startTime = interval.intervals[intervalNum]["start"];
               newBooking.endTime = interval.intervals[intervalNum]["end"];
   
@@ -454,11 +447,10 @@ module.exports = function(app) {
                                   });
                                 });
                                 //res.json({message: "Booked"});
-                              });
+                              };
                             }
                           });
                         });
-                        
                       }
                     }
                   });
@@ -466,8 +458,6 @@ module.exports = function(app) {
               }
             });
           }
-          }
-        }
       });
     } else {
       res.json({message: "Required fields are not fulfilled"});
