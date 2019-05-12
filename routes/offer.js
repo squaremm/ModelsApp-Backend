@@ -183,7 +183,7 @@ module.exports = function(app) {
         offer.level = parseInt(req.body.level) || 4;
         offer.images = [];
         offer.mainImage = null;
-        offer.intervals = body.intervals;
+        offer.intervals = req.body.intervals;
   
         User.findOne({ _id: offer.user }, { projection: { credits: 1 }}, function (err, user) {
           if (!user) {
@@ -197,20 +197,20 @@ module.exports = function(app) {
                   if (err) console.log(err);
                   offer._id = seq.value.seq;
   
-                  Place.findOneAndUpdate({_id: id}, {$push: {offers: seq.value.seq}}, function (err, place) {
+                 Place.findOneAndUpdate({_id: id}, {$push: {offers: seq.value.seq}}, async function (err, place) {
                     if (!place.value) {
                       res.json({message: "No such place"});
                     } else {
-                      User.findOneAndUpdate({_id: offer.user}, {$push: {offers: seq.value.seq}});
-                      Offer.insertOne(offer);
+                    await User.findOneAndUpdate({_id: offer.user}, {$push: {offers: seq.value.seq}});
+                    await Offer.insertOne(offer);
                       
-                      User.find({ accepted : true }).toArray(async (err, users) => {
-                        OfferPost.distinct('user', { place: place.value._id }).then(async (posts) => {
+                    await User.find({ accepted : true }).toArray(async (err, users) => {
+                      await OfferPost.distinct('user', { place: place.value._id }).then(async (posts) => {
                           let devices = [];
-                          posts.forEach((post) => {
+                          for (post of posts){
                             var user = users.find(x=>x._id == post);
                             if(user) devices.push(user.devices);
-                          });
+                          }
                           if(devices.length > 0){
                             devices = devices.reduce((a,b) => a.concat(b));
                             await pushProvider.sendNewOfferNotification(devices, offer, place.value);
