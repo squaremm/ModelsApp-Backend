@@ -1,7 +1,9 @@
 var db = require('../config/connection');
 var moment = require('moment');
+var sendGrid = require('../lib/sendGrid');
 var entityHelper = require('../lib/entityHelper');
 var crypto = require('crypto');
+
 
 var User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
 db.getInstance(function (p_db) {
@@ -140,11 +142,11 @@ module.exports = function(app) {
         res.status(500);
         res.json({message: "The booking is closed and could not be deleted"});
       } else {
-        var timeDiff = moment(book.date + ' ' + book.startTime, 'DD-MM-YYYY HH.mm').diff(moment(), 'hours');
+        var timeDiff = moment(book.date + ' ' + book.startTime, 'DD-MM-YYYY HH.mm').diff(moment(), 'minutes');
 
-        if (timeDiff < 3) {
+        if (timeDiff < 60) {
           res.status(500);
-          res.json({message: "Could not be deleted. Less than 3 hours left"});
+          res.json({message: "Could not be deleted. Less than one hours left"});
         } else {
           Place.findOneAndUpdate({_id: parseInt(book.place)}, {$pull: {bookings: id}}, function (err, updated) {
             if (!updated.value) {
@@ -445,7 +447,14 @@ module.exports = function(app) {
                                   Booking.insertOne(newBooking);
                                   res.json({message: "Booked"});
                                 });
-                              }
+
+                                Booking.insertOne(newBooking).then((booking) => {
+                                  sendBookingEmailMessage(place, newBooking).then(()=> {
+                                    res.json({message: "Booked"});
+                                  });
+                                });
+                                //res.json({message: "Booked"});
+                              });
                             }
                           });
                         });
@@ -490,4 +499,17 @@ module.exports = function(app) {
       }
     });
   });
+  sendBookingEmailMessage = async (place, booking) => {
+    let listToSend = [];
+    var user = await User.findOne({_id: booking.user});
+    let line = `booking date: ${ booking.date }, time:  ${booking.startTime }-${booking.endTime },`;
+    if(user){
+      line += ` user:  ${user.email }, ${user.name } ${user.surname } `;
+    }
+    listToSend.push(line);
+
+    place.notificationRecivers.forEach(async (reciver) => {
+      await sendGrid.sendBookingCreated(reciver.email, listToSend, place);
+    });
+  }
 }

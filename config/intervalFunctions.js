@@ -10,7 +10,7 @@ exports.checkBookingExpired = function(db){
     });
   }
   exports.sendReportBookingEmail = function(db){
-    schedule.scheduleJob('0 20 * * *', function(){
+    schedule.scheduleJob('50 20 * * *', function(){
       intervalFuncSendReportBookingEmail(db);
     });
   }
