@@ -157,17 +157,15 @@ module.exports = function(app) {
   // Create the offer. Then wait for the post, admin's check of the post, and then close it
   app.post('/api/place/:id/offer', async function (req, res) {
     var id = parseInt(req.params.id);
-    var start = req.body.start;
-    var end = req.body.end;
     var name = req.body.name
     var userID = req.body.userID;
     var composition =  req.body.composition;
     var price = req.body.price;
     var credits = req.body.credits;
+    let isIntervalsValid = await validateOfferIntervals(id,req.body.intervals);
 
-    if (name && id && userID && price && composition && credits && start && end) {
-      var interval = await Interval.findOne({place: id, intervals: { $elemMatch : { start: start, end : end } } });
-      if(interval){
+    if (name && id && userID && price && composition && credits && isIntervalsValid) {
+
         var offer = {};
         offer.name = name;
         offer.place = id;
@@ -185,8 +183,7 @@ module.exports = function(app) {
         offer.level = parseInt(req.body.level) || 4;
         offer.images = [];
         offer.mainImage = null;
-        offer.start = start;
-        offer.end = end;
+        offer.intervals = body.intervals;
   
         User.findOne({ _id: offer.user }, { projection: { credits: 1 }}, function (err, user) {
           if (!user) {
@@ -228,12 +225,8 @@ module.exports = function(app) {
               );
           }
         });
-      }
-      else{
-        res.status(400).json({message: "no interval for date ranges"})
-      }
     } else {
-      res.json({message: "Required fields are not fulfilled, required are: name, userID, price, composition, credits, start, end"});
+      res.json({message: "Required fields are not fulfilled, required are: name, userID, price, composition, credits, intervals and intervals must match to existing for a offer"});
     }
   });
 
@@ -610,3 +603,30 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
     }
   });
 };
+
+
+validateOfferIntervals = async (placeId,intervals) => {
+  let isValid = true;
+  if(intervals && Array.isArray(intervals)){
+    for (const interval of intervals) {
+      let intervalObjectKeys = Object.keys(interval);
+        if(intervalObjectKeys.find(y => y == 'start') && intervalObjectKeys.find(y => y == 'end')){
+          if(moment(`2019-01-01 ${interval.start.replace('.',':')}`).isValid() && moment(`2019-01-01 ${interval.end.replace('.',':')}`).isValid()){
+            interval.start = moment(`2019-01-01 ${interval.start.replace('.',':')}`).format('HH.mm');
+            interval.end = moment(`2019-01-01 ${interval.end.replace('.',':')}`).format('HH.mm');
+            var dbInterval = await Interval.findOne({place: placeId, intervals: { $elemMatch : { start: interval.start, end : interval.end } } });
+            if(!dbInterval){
+              isValid = false;
+            }
+          }else{
+            isValid = false;
+          }
+        }else{
+          isValid = false;
+        }
+      }
+  }else{
+    isValid = false;
+  }
+  return isValid;
+}
