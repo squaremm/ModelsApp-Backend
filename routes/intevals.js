@@ -56,7 +56,7 @@ app.post('/api/place/:id/intervals', async function (req, res) {
 
   //delete intervals 
   app.delete('/api/place/:id/intervals', function(req,res){
-    let id  = parseInt(body.params.id);
+    let id  = parseInt(req.params.id);
       Interval.deleteOne({place:id},function(err,deleted){
         if(err) {
             res.status(500).json({message:"Not deleted"});
