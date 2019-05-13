@@ -169,6 +169,8 @@ module.exports = function(app) {
       .then(offerPost => {
         if(offerPost.accepted){
           res.status(400).json({message: 'action arleady accepted'});
+        }else{
+          res.status(400).json({message: 'action rejected'});
         }
       })
       .catch(err => {
