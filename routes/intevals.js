@@ -18,6 +18,7 @@ module.exports = function(app) {
 
   // Get Booking Intervals for the specific place
   app.get('/api/place/:id/intervals', function (req, res) {
+    var id = parseInt(req.params.id);
         Interval.findOne({place: id}, function (err, interval) {
           if (!interval) {
             res.status(404).json({message: "No such intervals"});
