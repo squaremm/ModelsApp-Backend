@@ -71,21 +71,26 @@ validateIntervals = (intervals) => {
     let requiredProperties = ['start', 'end', 'day', 'slots'];
     let availableDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
     let isValid = true;
-    intervals.forEach((interval) => {
-      let objectKeys = Object.keys(interval);
-      requiredProperties.forEach(key => {
-        let foundKey =  objectKeys.find(x=> x == key);
-        if(foundKey){
-          if(foundKey == 'day'){
-            if(!availableDays.find(x=> x == interval[foundKey])){
-              isValid = false;
+    if(intervals && Array.isArray(intervals)){
+      intervals.forEach((interval) => {
+        let objectKeys = Object.keys(interval);
+        requiredProperties.forEach(key => {
+          let foundKey =  objectKeys.find(x=> x == key);
+          if(foundKey){
+            if(foundKey == 'day'){
+              if(!availableDays.find(x=> x == interval[foundKey])){
+                isValid = false;
+              }
             }
+          }else{
+            isValid = false;
           }
-        }else{
-          isValid = false;
-        }
+        });
+        interval.slots = parseInt(interval.slots);
       });
-      interval.slots = parseInt(interval.slots);
-    });
+    }else{
+      isValid = false;
+    }
+    
     return isValid;
   }

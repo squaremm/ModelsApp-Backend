@@ -157,10 +157,10 @@ module.exports = function(app) {
 
     Booking.find({ user: id }).toArray(async function (err, books) {
       var full = await Promise.all(books.map(async function (book) {
-        book.place = await Place.findOne({ _id: book.place }, { projection: { name: 1, address: 1, photos: 1, socials: 1, location: 1, address: 1 }});
+        book.place = await Place.findOne({ _id: book.place }, { projection: { name: 1, address: 1, photos: 1, socials: 1, location: 1, address: 1, mainImage: 1 }});
         if(book.place){
           if(book.place.photos) {
-            book.place.photo = book.place.photos[0];
+            book.place.photo = book.place.mainImage;
             delete book.place.photos;
           }
   
