@@ -362,13 +362,13 @@ module.exports = function(app) {
       var newBooking = {};
       newBooking.user = parseInt(req.body.userID);
       newBooking.place = id;
-      newBooking.date = moment(req.body.date).format('DD-MM-YYYY');
+      newBooking.date = req.body.date; //moment(req.body.date).format('DD-MM-YYYY');
       newBooking.creationDate = moment().format('DD-MM-YYYY');
       newBooking.closed = false;
       newBooking.claimed = false;
       newBooking.offers = [];
       newBooking.offerActions = [];
-      newBooking.day = moment(req.body.date).format('dddd');
+      //newBooking.day = moment(req.body.date).format('dddd');
 
       var minOffer;
       var minOfferPrice = 0;
