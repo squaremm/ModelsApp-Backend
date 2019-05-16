@@ -373,7 +373,10 @@ validateDaysOff = (daysOffs) => {
         if(foundKey == 'intervals'){
           dayOff['intervals'].forEach(interval => {
             let intervalObjectKeys = Object.keys(interval);
-            if(intervalObjectKeys.find(y => y == 'start') && intervalObjectKeys.find(y => y == 'end')){
+            if(intervalObjectKeys.find(y => y == 'start') && intervalObjectKeys.find(y => y == 'end') 
+              && moment(`2019-01-01 ${interval.start.replace('.',':')}`).isValid() 
+              && moment(`2019-01-01 ${interval.end.replace('.',':')}`).isValid()
+            ){
               interval.start = moment(`2019-01-01 ${interval.start.replace('.',':')}`).format('HH.mm');
               interval.end = moment(`2019-01-01 ${interval.end.replace('.',':')}`).format('HH.mm');
             }else{
