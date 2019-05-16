@@ -143,6 +143,20 @@ validateIntervals = (intervals) => {
         requiredProperties.forEach(key => {
           let foundKey =  objectKeys.find(x=> x == key);
           if(foundKey){
+            if(foundKey == 'start'){
+              if(moment(`2019-01-01 ${interval.start.replace('.',':')}`).isValid()){
+                interval.start = moment(`2019-01-01 ${interval.start.replace('.',':')}`).format('HH.mm');
+              }else{
+                isValid = false;
+              }
+            }
+            if(foundKey == 'end'){
+              if(moment(`2019-01-01 ${interval.end.replace('.',':')}`).isValid()){
+                interval.end = moment(`2019-01-01 ${interval.end.replace('.',':')}`).format('HH.mm');
+              }else{
+                isValid = false;
+              }
+            }
             if(foundKey == 'day'){
               if(!availableDays.find(x=> x == interval[foundKey])){
                 isValid = false;
