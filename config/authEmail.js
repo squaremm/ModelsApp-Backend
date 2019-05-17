@@ -92,17 +92,21 @@ exports.loginUser = async (req, res, next) => {
     if(email && emailRegexp.test(email) &&  password){
         email = email.toLowerCase();
         var user = await User.findOne({ email:  email});
-        
-        var isTempPassword = Boolean(user.temporaryPassword && bcrypt.compareSync(password, user.temporaryPassword)); //user has temporary password so he forgot his current one
-        if(user && user.password && (bcrypt.compareSync(password, user.password) 
-            || isTempPassword )){ 
-            return res.status(200).json({ 
-                isChangePasswordRequired: isTempPassword,
-                token : token.generateAccessToken(user._id)
-            });
+        if(user){
+            var isTempPassword = Boolean(user.temporaryPassword && bcrypt.compareSync(password, user.temporaryPassword)); //user has temporary password so he forgot his current one
+            if(user && user.password && (bcrypt.compareSync(password, user.password) 
+                || isTempPassword )){ 
+                return res.status(200).json({ 
+                    isChangePasswordRequired: isTempPassword,
+                    token : token.generateAccessToken(user._id)
+                });
+            }else{
+                return res.status(400).json({message : "invalid email or password" });
+            }
         }else{
             return res.status(400).json({message : "invalid email or password" });
         }
+        
     }else{
         return res.status(400).json({message : "invalid parameters" });
     }

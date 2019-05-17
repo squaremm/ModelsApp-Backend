@@ -502,9 +502,10 @@ module.exports = function(app) {
       line += ` user:  ${user.email }, ${user.name } ${user.surname } `;
     }
     listToSend.push(line);
-
-    place.notificationRecivers.forEach(async (reciver) => {
-      await sendGrid.sendBookingCreated(reciver.email, listToSend, place);
-    });
+    if(place && place.notificationRecivers && Array.isArray(place.notificationRecivers)){
+      place.notificationRecivers.forEach(async (reciver) => {
+        await sendGrid.sendBookingCreated(reciver.email, listToSend, place);
+      });
+    }
   }
 }
