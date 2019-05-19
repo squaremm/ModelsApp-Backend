@@ -8,6 +8,7 @@ var bcrypt = require('bcrypt-nodejs');
 var imageUplader = require('../lib/imageUplader');
 var multiparty = require('multiparty');
 var pushProvider = require('../lib/pushProvider');
+var path = require('path');
 
 var User, Booking, Offer, Place, OfferPost;
 db.getInstance(function (p_db) {
@@ -247,7 +248,8 @@ module.exports = function(app) {
         )
         .then((user) => {
           if(user && user.value){
-            res.status(200).json({message: 'Your account has been accepted'});
+            var filePath = path.join(__dirname, '../htmlTemplates/userConfirmed.html')
+            res.sendFile(filePath);
           }else{
             res.status(404).json({message: 'Not found'});
           }
