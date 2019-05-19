@@ -366,7 +366,7 @@ module.exports = function(app) {
               return x.start == booking.startTime && x.end == booking.endTime;
             }
           });
-          if(slot){
+          if(slot && slot.offers && Array.isArray(slot.offers)){
             Offer.find({place: placeId}).toArray(async (err, offers)  => {
               offers = offers.map(x=>{
                 x.isAvailable = slot.offers.indexOf(x._id) > -1;
