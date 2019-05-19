@@ -173,6 +173,10 @@ module.exports = function(app) {
               book.place.instaUser = '';
             }
           }
+        }else{
+          book.place = {};
+          book.place.photo = '';
+          book.place.instaUser ='';
         }
 
         var date = moment(book.date + ' ' + book.endTime, 'DD-MM-YYYY HH.mm');

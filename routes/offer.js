@@ -162,9 +162,8 @@ module.exports = function(app) {
     var composition =  req.body.composition;
     var price = req.body.price;
     var credits = req.body.credits;
-    let isIntervalsValid = await validateOfferIntervals(id,req.body.intervals);
 
-    if (name && id && userID && price && composition && credits && isIntervalsValid) {
+    if (name && id && userID && price && composition && credits) {
 
         var offer = {};
         offer.name = name;
@@ -183,7 +182,6 @@ module.exports = function(app) {
         offer.level = parseInt(req.body.level) || 4;
         offer.images = [];
         offer.mainImage = null;
-        offer.intervals = req.body.intervals;
   
         User.findOne({ _id: offer.user }, { projection: { credits: 1 }}, function (err, user) {
           if (!user) {

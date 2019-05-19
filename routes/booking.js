@@ -227,29 +227,31 @@ module.exports = function(app) {
 
         if(place && user && interval && choosenInterval){
           if(choosenInterval.day && choosenInterval.day == dayWeek){
-            let fullDate = moment(`${date.format('YYYY-MM-DD')} ${choosenInterval.start.replace('.',':')}`);
-            let timesValidation = await validateTimes(fullDate);
-            if(timesValidation.isValid){
-              let userValidation = await validateUserPossibility(fullDate, user, offers, place);
-              if(userValidation.isValid){
-                let validateInterval = await validateIntervalSlots(choosenInterval, fullDate, place);
-                if(validateInterval.free != 0){
-                  let newBooking = {
-                    _id: await entityHelper.getNewId('bookingid'),
-                    user: userID,
-                    place: id,
-                    date: moment(fullDate).format('DD-MM-YYYY'),
-                    creationDate: moment().format('DD-MM-YYYY'),
-                    closed: false,
-                    claimed: false,
-                    offers: [],
-                    offerActions: [],
-                    year: fullDate.year(),
-                    week: fullDate.isoWeek(),
-                    day: moment(fullDate).format('dddd'),
-                    payed: Math.min(...offers.map(x => x.price)) / 2,
-                    startTime: choosenInterval.start,
-                    endTime: choosenInterval.end
+            if(moment(`${date.format('YYYY-MM-DD')} ${choosenInterval.start.replace('.',':')}`).isValid()){
+
+              let fullDate = moment(`${date.format('YYYY-MM-DD')} ${choosenInterval.start.replace('.',':')}`);
+              let timesValidation = await validateTimes(fullDate);
+              if(timesValidation.isValid){
+                let userValidation = await validateUserPossibility(fullDate, user, offers, place);
+                if(userValidation.isValid){
+                  let validateInterval = await validateIntervalSlots(choosenInterval, fullDate, place);
+                  if(validateInterval.free != 0){
+                    let newBooking = {
+                      _id: await entityHelper.getNewId('bookingid'),
+                      user: userID,
+                      place: id,
+                      date: moment(fullDate).format('DD-MM-YYYY'),
+                      creationDate: moment().format('DD-MM-YYYY'),
+                      closed: false,
+                      claimed: false,
+                      offers: [],
+                      offerActions: [],
+                      year: fullDate.year(),
+                      week: fullDate.isoWeek(),
+                      day: moment(fullDate).format('dddd'),
+                      payed: Math.min(...offers.map(x => x.price)) / 2,
+                      startTime: choosenInterval.start,
+                      endTime: choosenInterval.end
                   }
                   await Booking.insertOne(newBooking);
                   await User.findOneAndUpdate({_id: newBooking.user}, {
@@ -267,6 +269,9 @@ module.exports = function(app) {
             }else{
               res.status(400).json({message:  timesValidation.error});
             }
+          }else{
+            res.status(400).json({message: "invalid date"});
+          }
           }else{
             res.status(400).json({message: "choosend date not match for inteval"});
           }
@@ -497,9 +502,10 @@ module.exports = function(app) {
       line += ` user:  ${user.email }, ${user.name } ${user.surname } `;
     }
     listToSend.push(line);
-
-    place.notificationRecivers.forEach(async (reciver) => {
-      await sendGrid.sendBookingCreated(reciver.email, listToSend, place);
-    });
+    if(place && place.notificationRecivers && Array.isArray(place.notificationRecivers)){
+      place.notificationRecivers.forEach(async (reciver) => {
+        await sendGrid.sendBookingCreated(reciver.email, listToSend, place);
+      });
+    }
   }
 }

@@ -349,6 +349,47 @@ module.exports = function(app) {
       res.status(404).json({message : "invalid parameters"});
     }
   });
+  app.get('/api/place/:id/booking/:bookingId/offers', async (req, res) => {
+    var placeId = parseInt(req.params.id);
+    var bookingId = parseInt(req.params.bookingId);
+
+    if(placeId && bookingId){
+      let place = await Place.findOne({ _id: placeId});
+      let booking = await Booking.findOne({ _id : bookingId });
+      let interval = await Interval.findOne({place : placeId });
+      if(place && booking && interval){
+        let slot = interval.intervals.find(x =>
+          {
+            if(booking.day){
+              return x.day == booking.day && x.start == booking.startTime && x.end == booking.endTime;
+            }else{
+              return x.start == booking.startTime && x.end == booking.endTime;
+            }
+          });
+          if(slot && slot.offers && Array.isArray(slot.offers)){
+            Offer.find({place: placeId}).toArray(async (err, offers)  => {
+              offers = offers.map(x=>{
+                x.isAvailable = slot.offers.indexOf(x._id) > -1;
+                return x;
+              })
+              res.status(200).json(offers);
+            });
+          }else{  
+            Offer.find({place: placeId}).toArray(async (err, offers)  => {
+              offers = offers.map(x=>{
+                x.isAvailable = true;
+                return x;
+              })
+              res.status(200).json(offers);
+            });
+          }
+      }else{
+        res.status(404).json({message : "place, booking or interval not found"});
+      }
+    }else{
+      res.status(404).json({message : "invalid parameters"});
+    }
+  });
   
 };
 
@@ -373,7 +414,10 @@ validateDaysOff = (daysOffs) => {
         if(foundKey == 'intervals'){
           dayOff['intervals'].forEach(interval => {
             let intervalObjectKeys = Object.keys(interval);
-            if(intervalObjectKeys.find(y => y == 'start') && intervalObjectKeys.find(y => y == 'end')){
+            if(intervalObjectKeys.find(y => y == 'start') && intervalObjectKeys.find(y => y == 'end') 
+              && moment(`2019-01-01 ${interval.start.replace('.',':')}`).isValid() 
+              && moment(`2019-01-01 ${interval.end.replace('.',':')}`).isValid()
+            ){
               interval.start = moment(`2019-01-01 ${interval.start.replace('.',':')}`).format('HH.mm');
               interval.end = moment(`2019-01-01 ${interval.end.replace('.',':')}`).format('HH.mm');
             }else{
