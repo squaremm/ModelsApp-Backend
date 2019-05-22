@@ -370,6 +370,11 @@ module.exports = function(app) {
 app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, function (req, res) {
   
     var bookingId = parseInt(req.params.bookingId);
+
+    //todo should be removed after ios update
+    if(req.body.postType && req.body.postType == 'google'){
+      req.body.postType = req.body.postType.replace('google', 'gPost');
+    }
     OfferPost.findOne({ offer: parseInt(req.params.id), booking: bookingId, type: req.body.postType }, function(err, dbOfferPost){
       if(dbOfferPost){
         res.status(400).json({message: "You arleady done this action"});
@@ -383,7 +388,7 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
           if(!booking){
             res.status(404).json({message: "No such booking"});
           }else{
-            if (!req.body.postType || !req.body.link || !req.body.feedback) {
+            if (!req.body.postType || !req.body.link || (req.body.postType != 'instaStories' && req.body.postType != 'instaPost'  && !req.body.feedback)) {
               res.json({message: "Not all fields are provided"});
             } else {
               if (!offer.credits[req.body.postType]) {

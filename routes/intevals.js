@@ -38,10 +38,6 @@ app.post('/api/place/:id/intervals', async function (req, res) {
     var id = parseInt(req.params.id);
     if(validateIntervals(req.body.intervals)){
       var interval = {};
-      interval.intervals = req.body.intervals.map(interval => {
-        interval.offers = [];
-        return interval;
-      });
       interval.place = id;
 
       let place = await Place.findOne({_id : id });
@@ -53,6 +49,10 @@ app.post('/api/place/:id/intervals', async function (req, res) {
               res.status(200).json({message: `intervals updated for place ${place.name}`});
           }else{
               interval._id = await entityHelper.getNewId('intervalsid');
+              interval.intervals = req.body.intervals.map(interval => {
+                interval.offers = [];
+                return interval;
+              });
               await Interval.insertOne(interval);
               res.status(200).json({message: `intervals added for place ${place.name}`});
           }
