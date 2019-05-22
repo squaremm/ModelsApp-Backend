@@ -372,8 +372,8 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
     var bookingId = parseInt(req.params.bookingId);
 
     //todo should be removed after ios update
-    if(req.body.postType && req.body.postType == 'googlePost'){
-      req.body.postType = req.body.postType.replace('googlePost', 'gPost');
+    if(req.body.postType && req.body.postType == 'google'){
+      req.body.postType = req.body.postType.replace('google', 'gPost');
     }
     OfferPost.findOne({ offer: parseInt(req.params.id), booking: bookingId, type: req.body.postType }, function(err, dbOfferPost){
       if(dbOfferPost){
