@@ -305,7 +305,7 @@ module.exports = function(app) {
     }
     let week = fullDate.isoWeek();
     let year = fullDate.year();
-    let usersBookings = await Booking.countDocuments({ user: user._id, year: year , week: week });
+    let usersBookings = await Booking.countDocuments({ user: user._id, year: year , week: week, place : place._id });
     let usersBookingsSamePlaceDate = await Booking.countDocuments({ user: user._id, place: place._id, date: {$eq: fullDate.format('DD-MM-YYYY')}  });
 
     if(usersBookingsSamePlaceDate == 0){
