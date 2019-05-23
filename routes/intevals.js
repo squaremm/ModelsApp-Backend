@@ -35,34 +35,37 @@ module.exports = function(app) {
 
 // Create the Booking Intervals entity
 app.post('/api/place/:id/intervals', async function (req, res) {
-    var id = parseInt(req.params.id);
-    if(validateIntervals(req.body.intervals)){
-      var interval = {};
-      interval.place = id;
+  var id = parseInt(req.params.id);
+  if(validateIntervals(req.body.intervals)){
+    var interval = {};
+    interval.place = id;
 
-      let place = await Place.findOne({_id : id });
-      if(place){
-          let dbInterval = await Interval.findOne({place: place._id });
-          //interval arleady exists let replace it
-          if(dbInterval){
-              await Interval.replaceOne({_id: dbInterval._id }, interval);
-              res.status(200).json({message: `intervals updated for place ${place.name}`});
-          }else{
-              interval._id = await entityHelper.getNewId('intervalsid');
-              interval.intervals = req.body.intervals.map(interval => {
-                interval.offers = [];
-                return interval;
-              });
-              await Interval.insertOne(interval);
-              res.status(200).json({message: `intervals added for place ${place.name}`});
-          }
-      }else{
-          res.status(404).json({message: 'place not found'});
-      }
+    let place = await Place.findOne({_id : id });
+    if(place){
+        let dbInterval = await Interval.findOne({place: place._id });
+        //interval arleady exists let replace it
+        if(dbInterval){
+            interval.intervals = req.body.intervals.map(interval => {
+              return interval;
+            });
+            await Interval.replaceOne({_id: dbInterval._id }, interval);
+            res.status(200).json({message: `intervals updated for place ${place.name}`});
+        }else{
+            interval._id = await entityHelper.getNewId('intervalsid');
+            interval.intervals = req.body.intervals.map(interval => {
+              interval.offers = [];
+              return interval;
+            });
+            await Interval.insertOne(interval);
+            res.status(200).json({message: `intervals added for place ${place.name}`});
+        }
     }else{
-      res.status(400).json({message: "Intervals not valid: each should have start, end, slots, day: (english day of week)"})
+        res.status(404).json({message: 'place not found'});
     }
-  });
+  }else{
+    res.status(400).json({message: "Intervals not valid: each should have start, end, slots, day: (english day of week)"})
+  }
+});
   app.put('/api/place/:id/intervals/:intervalId/add', async function (req, res) {
     var placeId = parseInt(req.params.id);
     var intervalId = parseInt(req.params.intervalId);
