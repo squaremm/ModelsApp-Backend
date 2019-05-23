@@ -46,6 +46,12 @@ app.post('/api/place/:id/intervals', async function (req, res) {
         //interval arleady exists let replace it
         if(dbInterval){
             interval.intervals = req.body.intervals.map(interval => {
+              let dbSlot = dbInterval.intervals.find(x => x.start == interval.start && x.end == interval.end && x.day == interval.day);
+              if(dbSlot){
+                interval.offers = dbSlot.offers;
+              }else{
+                interval.offers = [];
+              }
               return interval;
             });
             await Interval.replaceOne({_id: dbInterval._id }, interval);
