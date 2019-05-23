@@ -79,6 +79,9 @@ app.post('/api/place/:id/intervals', async function (req, res) {
           if(interval){
             interval.intervals = interval.intervals.map(interval => {
               let id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
+              if(!interval.offers){
+                interval.offers = [];
+              }
               if(id == slotId && interval.offers.indexOf(offerId) == -1){
                 interval.offers.push(offerId);
               }
