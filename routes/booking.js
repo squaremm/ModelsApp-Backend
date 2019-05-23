@@ -47,7 +47,9 @@ module.exports = function(app) {
                       var taken = await Booking.countDocuments({ place: id, date: date, startTime: interval.start, day: interval.day });
                       interval.free = interval.slots - taken;
                     }
-                    interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
+                    if(!interval._id){
+                      interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
+                    }
                     return interval;
                   }
                 }));
@@ -220,7 +222,9 @@ module.exports = function(app) {
         let offers = await Offer.find({place: id}).toArray();
 
         let intervals = interval.intervals.map((interval) => {
-          interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
+          if(!interval._id){
+            interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
+          }
           return interval;
         });
         let choosenInterval =  intervals.find(x=> x._id == intervalId);
