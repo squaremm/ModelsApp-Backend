@@ -21,10 +21,10 @@ module.exports = function(app) {
   app.get('/api/place/:id/intervals', function (req, res) {
       var id = parseInt(req.params.id);
       Interval.findOne({place: id}, function (err, interval) {
-      // interval.intervals = interval.intervals.map(interval => {
-      //   interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
-      //   return interval;
-      //   });
+      interval.intervals = interval.intervals.map(interval => {
+        interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
+        return interval;
+        });
         if (!interval) {
           res.status(404).json({message: "No such intervals"});
         } else {
@@ -46,10 +46,7 @@ app.post('/api/place/:id/intervals', async function (req, res) {
         //interval arleady exists let replace it
         if(dbInterval){
             interval.intervals = req.body.intervals.map(interval => {
-              if(!interval._id){
-                interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
-              }
-              let dbSlot = dbInterval.intervals.find(x => x._id == interval._id);
+              let dbSlot = dbInterval.intervals.find(x => x.start == interval.start && x.end == interval.end && x.day == interval.day);
               if(dbSlot){
                 interval.offers = dbSlot.offers;
               }else{
@@ -62,7 +59,6 @@ app.post('/api/place/:id/intervals', async function (req, res) {
         }else{
             interval._id = await entityHelper.getNewId('intervalsid');
             interval.intervals = req.body.intervals.map(interval => {
-              interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
               interval.offers = [];
               return interval;
             });
@@ -88,14 +84,11 @@ app.post('/api/place/:id/intervals', async function (req, res) {
           let interval = await Interval.findOne({ _id: intervalId , place : placeId });
           if(interval){
             interval.intervals = interval.intervals.map(interval => {
-              if(!interval._id){
-                interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
-              }
-              
+              let id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
               if(!interval.offers){
                 interval.offers = [];
               }
-              if(interval._id == slotId && interval.offers.indexOf(offerId) == -1){
+              if(id == slotId && interval.offers.indexOf(offerId) == -1){
                 interval.offers.push(offerId);
               }
               return interval;
@@ -123,11 +116,8 @@ app.post('/api/place/:id/intervals', async function (req, res) {
           let interval = await Interval.findOne({ _id: intervalId , place : placeId });
           if(interval){
             interval.intervals = interval.intervals.map(interval => {
-              if(!interval._id){
-                interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
-              }
-              
-              if(interval._id == slotId && interval.offers.indexOf(offerId) > -1){
+              let id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
+              if(id == slotId && interval.offers.indexOf(offerId) > -1){
                 interval.offers.splice(interval.offers.indexOf(offerId),1);
               }
               return interval;
