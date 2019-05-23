@@ -46,10 +46,7 @@ app.post('/api/place/:id/intervals', async function (req, res) {
         //interval arleady exists let replace it
         if(dbInterval){
             interval.intervals = req.body.intervals.map(interval => {
-              if(!interval._id){
-                interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
-              }
-              let dbSlot = dbInterval.intervals.find(x => x._id == interval._id);
+              let dbSlot = dbInterval.intervals.find(x => x.start == interval.start && x.end == interval.end && x.day == interval.day);
               if(dbSlot){
                 interval.offers = dbSlot.offers;
               }else{
@@ -88,10 +85,7 @@ app.post('/api/place/:id/intervals', async function (req, res) {
           let interval = await Interval.findOne({ _id: intervalId , place : placeId });
           if(interval){
             interval.intervals = interval.intervals.map(interval => {
-              if(!interval._id){
-                interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
-              }
-              
+              //let id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
               if(!interval.offers){
                 interval.offers = [];
               }
@@ -123,10 +117,7 @@ app.post('/api/place/:id/intervals', async function (req, res) {
           let interval = await Interval.findOne({ _id: intervalId , place : placeId });
           if(interval){
             interval.intervals = interval.intervals.map(interval => {
-              if(!interval._id){
-                interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
-              }
-              
+              //let id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
               if(interval._id == slotId && interval.offers.indexOf(offerId) > -1){
                 interval.offers.splice(interval.offers.indexOf(offerId),1);
               }
