@@ -143,6 +143,37 @@ app.post('/api/place/:id/intervals', async function (req, res) {
         }
       })
   });
+  app.put('/api/place/:id/intervals/:intervalId/removeSingle', async function (req, res) {
+    var placeId = parseInt(req.params.id);
+    var intervalId = parseInt(req.params.intervalId);
+    var slotId = req.body.slotId;
+
+    if(placeId && intervalId && slotId){
+          let interval = await Interval.findOne({ _id: intervalId , place : placeId });
+          if(interval){
+            interval.intervals = interval.intervals.map(interval => {
+              interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
+              return interval;
+            });
+            interval.intervals = interval.intervals.filter(interval => interval._id != slotId);
+            interval.intervals = interval.intervals.map(interval => {
+              delete interval._id;
+              return interval;
+            });
+            await Interval.replaceOne({_id : intervalId }, interval);
+            
+            interval.intervals = interval.intervals.map(interval => {
+              interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
+              return interval;
+            });
+            res.status(200).json({message : "updated", interval:  interval});
+        }else{
+          res.status(404).json({message : "interval not found"});
+        }
+    }else{
+      res.status(400).json({message : "invalid parameters: placeId, intervalId, offerId, slotId"});
+    }
+  });
 }
 
 validateIntervals = (intervals) => {
