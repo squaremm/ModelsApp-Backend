@@ -3,6 +3,7 @@ var middleware = require('../config/authMiddleware');
 var moment = require('moment');
 var imageUplader = require('../lib/imageUplader');
 var multiparty = require('multiparty');
+var entityHelper = require('../lib/entityHelper');
 
 var User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
 db.getInstance(function (p_db) {
@@ -79,7 +80,16 @@ module.exports = function(app) {
           place._id = seq.value.seq;
 
           Place.insertOne( place, function() {
-            res.json({ message: "The place is added", _id: seq.value.seq });
+            entityHelper.getNewId('intervalsid').then((id) => {
+              let interval = {
+                _id: id,
+                place: seq.value.seq,
+                intervals: []
+              }
+              Interval.insertOne(interval, function(){
+                res.json({ message: "The place is added", _id: seq.value.seq });
+              })
+            })
           });
         }
       );

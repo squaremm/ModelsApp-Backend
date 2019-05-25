@@ -3,12 +3,14 @@ var db = require('./connection');
 var bcrypt = require('bcrypt-nodejs');
 var moment = require('moment');
 var pushProvider = require('../lib/pushProvider');
+var entityHelper = require('../lib/entityHelper');
 
 var Counter, Place;
 db.getInstance(function (p_db) {
   Place = p_db.collection('places');
   Counter = p_db.collection('counters');
   User = p_db.collection('user');
+  Interval = p_db.collection('bookingIntervals');
 });
 
 module.exports = function (passport) {
@@ -74,11 +76,19 @@ module.exports = function (passport) {
                   };
                   console.log(newPlace)
                   Place.insertOne(newPlace);
-                  User.find({ accepted : true }).toArray(async (err, list) => {
-                    let devices = list.map(x=> x.devices).reduce((a,b) => a.concat(b));
-                    await pushProvider.sendNewPlaceNotification(devices, newPlace);
+                  entityHelper.getNewId('intervalsid').then((id) => {
+                    let interval = {
+                      _id: id,
+                      place: seq.value.seq,
+                      intervals: []
+                    }
+                    Interval.insertOne(interval);
+                    User.find({ accepted : true }).toArray(async (err, list) => {
+                      let devices = list.map(x=> x.devices).reduce((a,b) => a.concat(b));
+                      await pushProvider.sendNewPlaceNotification(devices, newPlace); 
+                    }); 
+                    return done(null, newPlace);
                   });
-                  return done(null, newPlace);
                 });
               } else {
                 req.authMessage = "Please, provide the coordinates";
