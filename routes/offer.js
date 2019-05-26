@@ -154,6 +154,19 @@ module.exports = function(app) {
       });
     });
 
+  validateTimeframes = (timeframes) => {
+    let isValid = true;
+    if(timeframes && Array.isArray(timeframes)){
+      timeframes.forEach(frame => {
+        if(typeof frame !== "string"){
+          isValid = false;
+        }
+      });
+    }else{
+      isValid = false;
+    }
+    return isValid;
+  }
   // Create the offer. Then wait for the post, admin's check of the post, and then close it
   app.post('/api/place/:id/offer', async function (req, res) {
     var id = parseInt(req.params.id);
@@ -162,8 +175,9 @@ module.exports = function(app) {
     var composition =  req.body.composition;
     var price = req.body.price;
     var credits = req.body.credits;
+    var timeframes = req.body.timeframes;
 
-    if (name && id && userID && price && composition && credits) {
+    if (name && id && userID && price && composition && credits && validateTimeframes(timeframes)) {
 
         var offer = {};
         offer.name = name;
@@ -182,6 +196,7 @@ module.exports = function(app) {
         offer.level = parseInt(req.body.level) || 4;
         offer.images = [];
         offer.mainImage = null;
+        offer.timeframes = timeframes;
   
         User.findOne({ _id: offer.user }, { projection: { credits: 1 }}, function (err, user) {
           if (!user) {
@@ -224,7 +239,7 @@ module.exports = function(app) {
           }
         });
     } else {
-      res.json({message: "Required fields are not fulfilled, required are: name, userID, price, composition, credits, intervals and intervals must match to existing for a offer"});
+      res.json({message: "Required fields are not fulfilled, required are: name, userID, price, composition, credits and timeframes"});
     }
   });
 
