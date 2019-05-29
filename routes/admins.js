@@ -11,6 +11,7 @@ db.getInstance(function (p_db) {
   Offer = p_db.collection('offers');
   OfferPost = p_db.collection('offerPosts');
   Booking = p_db.collection('bookings');
+  OfferPostArchive = p_db.collection('offerPostArchive');
 });
 
 module.exports = function(app) {
@@ -166,10 +167,12 @@ module.exports = function(app) {
     var id = parseInt(req.params.id);
     //find post action in db
     OfferPost.findOne({ _id: id })
-      .then(offerPost => {
+      .then(async offerPost => {
         if(offerPost.accepted){
           res.status(400).json({message: 'action arleady accepted'});
         }else{
+          await OfferPost.deleteOne({ _id : id });
+          await OfferPostArchive.findOneAndUpdate({_id : 0 }, { $push : { posts : offerPost } });
           res.status(400).json({message: 'action rejected'});
         }
       })
