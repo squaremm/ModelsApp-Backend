@@ -235,7 +235,7 @@ module.exports = function(app) {
                 let userValidation = await validateUserPossibility(fullDate, user, offers, place);
                 if(userValidation.isValid){
                   let validateInterval = await validateIntervalSlots(choosenInterval, fullDate, place);
-                  if(validateInterval.free != 0){
+                  if(validateInterval.free > 0){
                     let newBooking = {
                       _id: await entityHelper.getNewId('bookingid'),
                       user: userID,
