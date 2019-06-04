@@ -109,7 +109,7 @@ module.exports = function(app) {
         if(!newPlace){
           res.status(500).json({message : "invalid body"})
         }else{
-
+          if(newPlace.tags !== place.tags && newPlace.tags) place.tags = newPlace.tags;
           if(newPlace.phone !== place.phone && newPlace.phone) place.phone = newPlace.phone;
           if(newPlace.instapage !== place.instapage && newPlace.instapage) place.instapage = newPlace.instapage;
           if(newPlace.name !== place.name && newPlace.name) place.name = newPlace.name;
