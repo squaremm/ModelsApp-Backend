@@ -105,7 +105,7 @@ module.exports = function(app) {
     let iosVersion = req.body.version;
     if(iosVersion){
       iosVersion = parseInt(iosVersion);
-      if(iosVersion >= parseInt(config.iosVersion)){
+      if(iosVersion < parseInt(config.iosVersion)){
         res.status(200).json({version : 'ok'})
       }else{
         res.status(400).json({version : 'not valid'})
