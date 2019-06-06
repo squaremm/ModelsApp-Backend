@@ -253,6 +253,7 @@ module.exports = function(app) {
             _id : x._id,
             credits: x.credits,
             name: x.name,
+            surname: x.surname,
             instagramName: x.instagram ? x.instagram.full_name : x.instagramName,
             email:  x.email,
             photo: x.photo
