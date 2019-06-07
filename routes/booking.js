@@ -48,10 +48,11 @@ module.exports = function(app) {
                       interval.free = interval.slots - taken;
                     }
                     interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
+                    interval.timestamp = moment(`2019-01-01 ${interval.start.replace('.',':')}`).format("X");
                     return interval;
                   }
                 }));
-                res.json(newArr.filter(x=> x != null));
+                res.json(newArr.filter(x=> x != null).sort((a,b) => a.timestamp > b.timestamp));
               }
             });
           }
