@@ -41,6 +41,8 @@ require('./routes/statistics')(app);
 require('./routes')(app);
 require('./Views/htmlViews')(app);
 require('./routes/samplePost')(app);
+require('./routes/campains/campaigns')(app);
+require('./routes/campains/userCampaigns')(app);
 
 
 var functions = require('./config/intervalFunctions');
