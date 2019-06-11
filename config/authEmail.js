@@ -39,7 +39,8 @@ exports.createUser = async (req, res, next) => {
                 loginTypes : [],
                 confirmHash : crypto.randomBytes(10).toString('hex'),
                 images: [],
-                mainImage: null
+                mainImage: null,
+                registerStep: 0
             };
 
             newUser.loginTypes.push('email');
