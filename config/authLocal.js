@@ -72,7 +72,8 @@ module.exports = function (passport) {
                     images: [],
                     mainImage: null,
                     instapage: null,
-                    daysOffs: []
+                    daysOffs: [],
+                    isActive: true
                   };
                   console.log(newPlace)
                   Place.insertOne(newPlace);

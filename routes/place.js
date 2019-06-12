@@ -65,6 +65,7 @@ module.exports = function(app) {
     place.mainImage = null;
     place.instapage = null;
     place.daysOffs = [];
+    place.isActive = true;
 
     // Make all fields required
     if(!place.name || !place.type || !place.address || !place.photos || !place.location.coordinates ||
@@ -109,6 +110,8 @@ module.exports = function(app) {
         if(!newPlace){
           res.status(500).json({message : "invalid body"})
         }else{
+
+          if(newPlace.isActive !== place.isActive && newPlace.isActive) place.isActive = newPlace.isActive;
           if(newPlace.tags !== place.tags && newPlace.tags) place.tags = newPlace.tags;
           if(newPlace.phone !== place.phone && newPlace.phone) place.phone = newPlace.phone;
           if(newPlace.instapage !== place.instapage && newPlace.instapage) place.instapage = newPlace.instapage;
@@ -233,7 +236,7 @@ module.exports = function(app) {
   
   // Get all Places
   app.get('/api/place', function (req, res) {
-    Place.find({}, { projection: { client: 0 }}).toArray( async function (err, places) {
+    Place.find({ isActive : true }, { projection: { client: 0 }}).toArray( async function (err, places) {
       getMoreData(places, res);
     });
   });
