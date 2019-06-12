@@ -43,7 +43,7 @@ require('./Views/htmlViews')(app);
 require('./routes/samplePost')(app);
 require('./routes/campains/campaigns')(app);
 require('./routes/campains/userCampaigns')(app);
-
+require('./routes/campains/campaignsIntervals')(app);
 
 var functions = require('./config/intervalFunctions');
 
