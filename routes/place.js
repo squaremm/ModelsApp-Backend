@@ -175,7 +175,7 @@ module.exports = function(app) {
   // Get concrete Place and give it Offers, Bookings and Intervals from another entities
   app.get('/api/place/:id', function (req, res) {
     var id = parseInt(req.params.id);
-    Place.findOne({ _id: id }, { projection: { client: 0 }}, async function (err, place) {
+    Place.findOne({ _id: id, isActive : true }, { projection: { client: 0 }}, async function (err, place) {
       if(!place){
         res.json({ message: "No such place" });
       } else {
