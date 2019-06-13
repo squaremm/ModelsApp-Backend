@@ -37,7 +37,7 @@ let coordinate = new Schema({
     }
 })
 
-let localtion = new Schema({
+let location = new Schema({
     address: {
         type: String,
         required: true
@@ -46,20 +46,14 @@ let localtion = new Schema({
         type: String,
         required: true
     },
-    coordinates: {
-        type: coordinate,
-        required: true
-    }
+    coordinates: coordinate
 });
 
-let CampaignSchema =  new Schema({
-    localtion: {
-        type: localtion,
-        required: true
-    },
+let campaignIntervalSchema =  new Schema({
+    location: location,
     intervals: [interval]
 })
 
 module.exports = {
-    campaignSchema: CampaignSchema
+    campaignIntervalSchema: campaignIntervalSchema
 }
