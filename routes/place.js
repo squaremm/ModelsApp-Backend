@@ -240,6 +240,12 @@ module.exports = function(app) {
       getMoreData(places, res);
     });
   });
+  // Get all Places
+  app.get('/api/admin/place', function (req, res) {
+    Place.find({ }, { projection: { client: 0 }}).toArray( async function (err, places) {
+      getMoreData(places, res);
+    });
+  });
 
   // Delete the place
   app.delete('/api/place/:id', function (req, res) {
