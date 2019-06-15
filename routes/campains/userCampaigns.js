@@ -126,30 +126,34 @@ module.exports = function(app) {
       if(id && user){
         var userCampaign = await UserCampaign.findOne({ campaign : id, user: user._id });
         if(userCampaign){
-        var form = new multiparty.Form();
-        form.parse(req, async function (err, fields, files) {
-          if(files){
-            files = files.images;
-            var addedImages = [];
-            for (file of files) {
-              userCampaign = await UserCampaign.findOne({ campaign : id, user: user._id });
-
-              if(userCampaign.images.length < userCampaign.imageCount){
-                await imageUplader.uploadImage(file.path, 'users', user._id)
-                .then(async (newImage) =>{
-                  await UserCampaign.findOneAndUpdate({ campaign : id, user: user._id }, { $push: { images: newImage } })
-                  addedImages.push(newImage);
-                })
-                .catch((err) => {
-                  console.log(err);
-                });
+          if(moment().isBefore(moment(userCampaign.uploadPicturesTo))){
+            var form = new multiparty.Form();
+            form.parse(req, async function (err, fields, files) {
+              if(files){
+                files = files.images;
+                var addedImages = [];
+                for (file of files) {
+                  userCampaign = await UserCampaign.findOne({ campaign : id, user: user._id });
+    
+                  if(userCampaign.images.length < userCampaign.imageCount){
+                    await imageUplader.uploadImage(file.path, 'users', user._id)
+                    .then(async (newImage) =>{
+                      await UserCampaign.findOneAndUpdate({ campaign : id, user: user._id }, { $push: { images: newImage } })
+                      addedImages.push(newImage);
+                    })
+                    .catch((err) => {
+                      console.log(err);
+                    });
+                  }
+                }
+                res.status(200).json({message: "ok", images: addedImages});
+              }else{
+                res.status(400).json({message:  'no files added'});
               }
-            }
-            res.status(200).json({message: "ok", images: addedImages});
+            });
           }else{
-            res.status(400).json({message:  'no files added'});
+            res.status(404).json({message : "Time to upload pictures has expired" });
           }
-        });
       }else{
         res.status(404).json({message : "UserCampaign not found" });
       }
@@ -206,18 +210,22 @@ module.exports = function(app) {
       if(userCampaignId){
         let underReview = await getUserCampaignsByStatus(3);
         let userCampaign = underReview.find(x => x._id == userCampaignId);
-        let campaign = await Campaign.findOne({ _id :  userCampaign.campaign });
-        if(userCampaign && campaign){
+        if(userCampaign){
           if(userCampaign.status == 3){
-            let creditValue = campaign.rewards.find(x => x.isGlobal && x.type == 'credit');
-            if(creditValue){
-              await UserCampaign.findOneAndUpdate({_id : userCampaign._id }, { $set: { status: 4 } });
-              await User.findOneAndUpdate({_id : userCampaign.userId }, {$inc: {credits : creditValue.value }});
-              let user = User.findOne({_id: userCampaign.userId });
-              await pushProvider.creditAddNotification(user.devices, creditValue);
-              res.status(200).json({message: "user campaign has been accepted"});
+            let campaign = await Campaign.findOne({ _id :  userCampaign.campaign });
+            if(campaign){
+              let creditValue = campaign.rewards.find(x => x.isGlobal && x.type == 'credit');
+              if(creditValue){
+                await UserCampaign.findOneAndUpdate({_id : userCampaign._id }, { $set: { status: 4 } });
+                await User.findOneAndUpdate({_id : userCampaign.userId }, {$inc: {credits : creditValue.value }});
+                let user = User.findOne({_id: userCampaign.userId });
+                await pushProvider.creditAddNotification(user.devices, creditValue);
+                res.status(200).json({message: "user campaign has been accepted"});
+              }else{
+                res.status(404).json({message : 'reward not defined'});
+              }
             }else{
-              res.status(404).json({message : 'reward not defined'});
+              res.status(404).json({message : "campaign not found"});
             }
           }else{
             res.status(404).json({message : `invalid status should be under review`});
@@ -253,6 +261,7 @@ module.exports = function(app) {
 
     app.get('/api/admin/usercampaign/pending', async (req, res) => {
         let pendingUserCampaigns = await getPendingUserCampaigns();
+        let campaignId = parseFloat(req.query.id);
         res.status(200).json(pendingUserCampaigns.map(x=> {
           x.userId = x.user._id;
           x.userImage = x.user.mainImage;
@@ -263,10 +272,21 @@ module.exports = function(app) {
           delete x.imageCount;
           delete x.images;
           return x;
+        }).filter(x=> {
+          if(!campaignId){
+            return true;
+          }else{
+            if(campaignId == x.campaign) {
+              return true
+            }else{
+              return false;
+            }
+          }
         }));
     });
     app.get('/api/admin/usercampaign/waiting', async (req, res) => {
-      let users = await getUserCampaignsByStatus(2);
+      let id = parseInt(req.query.id);
+      let users = await getUserCampaignsByStatus(2, id);
       res.status(200).json(users);
     });
 
@@ -290,11 +310,63 @@ module.exports = function(app) {
     });
 
     app.get('/api/admin/usercampaign/review', async (req, res) => {
-      let users = await getUserCampaignsByStatus(3);
+      let id = parseInt(req.query.id);
+      let users = await getUserCampaignsByStatus(3, id);
       res.status(200).json(users);
     });
 
-    getUserCampaignsByStatus = async (status) => {
+    app.get('/api/admin/usercampaign/accept', async (req, res) => {
+      let id = parseInt(req.query.id);
+      let users = await getUserCampaignsByStatus(4, id);
+      res.status(200).json(users);
+    });
+
+    app.put('/api/admin/usercampaign/winner', async (req, res) => {
+      let userCampaignId = parseInt(req.body.userCampaignId);
+      let position = parseInt(req.body.position);
+
+      if(userCampaignId && position){
+        let accepted = await getUserCampaignsByStatus(4);
+        let userCampaign = accepted.find(x => x._id == userCampaignId);
+        if(userCampaign){
+          let campaign = await Campaign.findOne({ _id :  userCampaign.campaign }, {users: 0, moodboardImages: 0, tasks: 0 });
+          if(campaign){
+            if(campaign.winners.filter(x=>x.position == position).length == 0){
+              if(userCampaign.status == 4){
+                let creditValue = campaign.rewards.find(x => !x.isGlobal && x.type == 'credit' && x.position == position);
+                if(creditValue){
+                  let winner = {
+                    position: position,
+                    user: userCampaign.userId
+                  }
+                  await Campaign.findOneAndUpdate({ _id: userCampaign.campaign }, {$push: { winners : winner }});
+                  await User.findOneAndUpdate({_id : userCampaign.userId }, {$inc: {credits : creditValue.value }});
+                  let user = User.findOne({_id: userCampaign.userId });
+                  await pushProvider.creditAddNotification(user.devices, creditValue);
+                  res.status(200).json({message: "you set the winner"});
+                }else{
+                  res.status(404).json({message : 'reward not defined'});
+                }
+              }else{
+                res.status(404).json({message : `invalid status should be accepted`});
+              }
+            }else{
+              res.status(404).json({message : `winner for position ${position} arleady set`});
+            }
+          }else{
+            res.status(404).json({message : "campaign not found"});
+          }
+        }else{
+          res.status(404).json({message : "user campaign not found"});
+        }
+      }else{
+        res.status(404).json({message : "invalid parameters"});
+      }
+    });
+
+
+
+    getUserCampaignsByStatus = async (status, campaignId) => {
       let userByStatus = await UserCampaign
       .aggregate([{
                 '$lookup': {
@@ -321,6 +393,16 @@ module.exports = function(app) {
         delete x.uploadPicturesTo;
         delete x.uploadPicturesInstagramTo;
         return x;
+      }).filter(x=> {
+        if(!campaignId){
+          return true;
+        }else{
+          if(campaignId == x.campaign) {
+            return true
+          }else{
+            return false;
+          }
+        }
       });
     };
     getPendingUserCampaigns = async () =>{

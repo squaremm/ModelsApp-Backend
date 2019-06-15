@@ -9,6 +9,7 @@ var middleware = require('../../config/authMiddleware');
 
 let Campaign, UserCampaign, User;
 db.getInstance(function (p_db) {
+  User = p_db.collection('users');
   Campaign = p_db.collection('campaigns');
   UserCampaign = p_db.collection('userCampaigns');
 });
@@ -22,10 +23,11 @@ module.exports = function(app) {
     if(errors.length == 0){
       if(campaign.tasks && campaign.rewards){
         campaign._id = await entityHelper.getNewId('campaignId');
+        campaign.mainImage = null;
         campaign.users = [];
         campaign.exampleImages = [];
         campaign.moodboardImages = [];
-        campaign.mainImage = null;
+        campaign.winners = [];
         await Campaign.insertOne(campaign);
       res.status(200).json(campaign);
       }else{
@@ -50,6 +52,7 @@ module.exports = function(app) {
       res.status(400).json({message : 'not authoirze'});
     }
   });
+
   app.get('/api/campaign/:id', middleware.isAuthorized, async (req, res) => {
     let user = await req.user;
     let id = parseInt(req.params.id);
@@ -57,6 +60,14 @@ module.exports = function(app) {
       let campaigns = await Campaign.find({}).toArray();
       let campaign = viewModels.toMobileViewModel(campaigns, user, true).filter(x => x._id == id)[0];
       if(campaign){
+        if(campaign.hasWinner){
+          campaign.userWinner = await User.findOne({_id: campaign.winners.find(x=>x.position == 1).user });
+          campaign.userWinner = {
+            _id: campaign.userWinner._id,
+            mainImage: campaign.userWinner.mainImage,
+            instagramName: campaign.userWinner.instagramName,
+          }
+        }
         if(campaign.isParticipant){
           let userCampaigns = await UserCampaign.findOne({campaign : campaign._id, user : user._id });
           let viewModel = await viewModels.joinCampaignWithUserCampaign(campaign, userCampaigns);
@@ -67,6 +78,22 @@ module.exports = function(app) {
       }else{
         res.status(400).json({message : 'not found'});
       }
+    }else{
+      res.status(400).json({message : 'not authoirze'});
+    }
+  });
+  app.get('/api/campaign/:id/photos', middleware.isAuthorized, async (req, res) => {
+    let user = await req.user;
+    let id = parseInt(req.params.id);
+    if(user){
+      let campaigns = await UserCampaign.find({campaign: id}).toArray();
+      campaigns = campaigns.map(x => {
+        let images = x.images.map( xx=> {
+          return xx.url;
+        })
+        return images;
+      })
+      res.status(200).json(campaigns);
     }else{
       res.status(400).json({message : 'not authoirze'});
     }
@@ -226,6 +253,43 @@ if(id){
 }else{
   res.status(404).json({message : "invalid parameters"});
 }
+});
+
+app.post('/api/campaign/:id/images/reward/:position', async (req,res) => {
+  var id = parseInt(req.params.id);
+  let position = parseInt(req.params.position);
+  if(id && position){
+    var campaign = await Campaign.findOne({ _id : id });
+    if(campaign){
+    var form = new multiparty.Form();
+    form.parse(req, async function (err, fields, files) {
+      if(files){
+        files = files.images;
+        for (file of files) {
+          await imageUplader.uploadImage(file.path, 'campaign', campaign._id)
+            .then(async (newImage) => {
+              
+              await Campaign.updateOne(
+                { '_id': id },
+                { $set: { 'rewards.$[t].mainImage': newImage.url }},
+                { arrayFilters: [ {"t.position": position  } ] });
+
+                res.status(200).json({message: "ok"});
+            })
+            .catch((err) => {
+              console.log(err);
+            });
+        }
+      }else{
+        res.status(400).json({message : 'no files added'});
+      }
+    });
+  }else{
+    res.status(404).json({message : "campaign not found" });
+  }
+  }else{
+    res.status(404).json({message : "invalid parameters"});
+    }
 });
 
 }

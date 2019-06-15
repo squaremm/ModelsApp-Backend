@@ -11,6 +11,8 @@ exports.toMobileViewModel = (campaigns, currentUser, withDetails) => {
         x.daysToInstagramPicture =  moment(x.uploadPicturesInstagramTo).diff(now, 'days') < 0 ? 0 : moment(x.uploadPicturesInstagramTo).diff(now, 'days');
         x.isJoinable = x.daysToStart > 0 && x.users.filter(x=> x == currentUser._id).length == 0;
         x.isParticipant = x.users.filter(x=> x == currentUser._id).length > 0;
+        x.isWinner = x.winners.filter(x => x.user == currentUser._id).length > 0;
+        x.hasWinner = x.winners.length > 0;
         delete x.startAt;
         delete x.uploadPicturesInstagramTo;
         delete x.uploadPicturesTo;
@@ -23,6 +25,8 @@ exports.toMobileViewModel = (campaigns, currentUser, withDetails) => {
           delete x.description;
           delete x.isJoinable;
           delete x.isParticipant;
+          delete x.isWinner;
+          delete x.hasWinner;
         }
         return x;
       }else{
