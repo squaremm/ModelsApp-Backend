@@ -19,6 +19,7 @@ exports.toMobileViewModel = (campaigns, currentUser, withDetails) => {
         delete x.availableFrom;
         delete x.availableTill;
         delete x.users;
+        delete x.qrCode;
         if(!withDetails){
           delete x.rewards;
           delete x.tasks;
@@ -26,7 +27,8 @@ exports.toMobileViewModel = (campaigns, currentUser, withDetails) => {
           delete x.isJoinable;
           delete x.isParticipant;
           delete x.isWinner;
-          delete x.hasWinner;
+          delete x.exampleImages;
+          delete x.moodboardImages;
         }
         return x;
       }else{
@@ -61,5 +63,6 @@ exports.getStatusDescription = async (status) => {
     campaign.slot = userCampaigns.slot;
     campaign.images = userCampaigns.images;
     campaign.statusDescription = await this.getStatusDescription(userCampaigns.status);
+    campaign.isPictureUploadAllow = userCampaigns.isGiftTaken && (campaign.status == 1 || campaign.status == -2);
     return campaign;
  }
