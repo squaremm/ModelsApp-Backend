@@ -1,11 +1,12 @@
-var db = require('../../config/connection');
+let db = require('../../config/connection');
 let campaignSchema = require('../../model/campaign/campaignSchema');
 let viewModels = require('../../model/campaign/campaignViewModel');
 let moment = require('moment');
 let entityHelper = require('../../lib/entityHelper');
-var imageUplader = require('../../lib/imageUplader');
-var multiparty = require('multiparty');
-var middleware = require('../../config/authMiddleware');
+let imageUplader = require('../../lib/imageUplader');
+let multiparty = require('multiparty');
+let middleware = require('../../config/authMiddleware');
+let crypto = require('crypto');
 
 let Campaign, UserCampaign, User;
 db.getInstance(function (p_db) {
@@ -24,6 +25,7 @@ module.exports = function(app) {
       if(campaign.tasks && campaign.rewards){
         campaign._id = await entityHelper.getNewId('campaignId');
         campaign.mainImage = null;
+        campaign.qrCode = crypto.randomBytes(20).toString('hex'),
         campaign.users = [];
         campaign.exampleImages = [];
         campaign.moodboardImages = [];

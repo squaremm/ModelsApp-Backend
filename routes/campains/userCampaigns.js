@@ -25,6 +25,34 @@ db.getInstance(function (p_db) {
 
 module.exports = function(app) {
   
+    app.post('/api/campaign', middleware.isAuthorized,  async (req, res) => {
+      let qrCode = req.body.qrCode;
+      let user = await req.user;
+      if(qrCode && user){
+        let campaign = await Campaign.findOne({qrCode: qrCode});
+        if(campaign){
+          let userCampaign = await UserCampaign.findOne({ user: user._id, campaign: campaign._id, isPending: false, isAccepted : true});
+          if(userCampaign){
+            if(!userCampaign.isGiftTaken){
+              await UserCampaign.findOneAndUpdate({user: user._id, campaign: campaign._id}, {$set: {isGiftTaken: true }});
+              
+              let campaigns = await Campaign.find({}).toArray();
+              campaign = viewModels.toMobileViewModel(campaigns, user, true).filter(x => x._id == id)[0];
+
+              res.status(200).json(await viewModels.joinCampaignWithUserCampaign(campaign, userCampaign));
+            }else{
+              res.status(400).json({message : "you arleady taked the gift"});
+            }
+          }else{
+            res.status(400).json({message : "you cannot take a gift"});
+          }
+        }else{
+          res.status(404).json({message : "campaign not found"});
+        }
+      }else{
+        res.status(404).json({message : "invalid parameters"});
+      }
+    });
     //create new user campaing
     app.post('/api/campaign/:id/join', middleware.isAuthorized,  async (req, res) => {
         let user = await req.user;
@@ -44,6 +72,7 @@ module.exports = function(app) {
                         campaign: campaign._id,
                         isAccepted: false,
                         isPending: true,
+                        isGiftTaken: false,
                         uploadPicturesTo: campaign.uploadPicturesTo,
                         uploadPicturesInstagramTo: campaign.uploadPicturesInstagramTo,
                         imageCount: imageCount,
@@ -79,7 +108,7 @@ module.exports = function(app) {
       if(user && id){
         let userCampaign = await UserCampaign.findOne({campaign: id, user: user._id });
         if(userCampaign){
-          if(userCampaign.status == 1 || userCampaign.status == -2){
+          if(userCampaign.status == 1 || userCampaign.status == -2 && userCampaign.isGiftTaken){
             if(userCampaign.images.length == userCampaign.imageCount){
               await UserCampaign.findOneAndUpdate({campaign: id, user: user._id }, {$set : { status: 2 }});
               res.status(200).json({message : 'ok'});
@@ -127,32 +156,36 @@ module.exports = function(app) {
         var userCampaign = await UserCampaign.findOne({ campaign : id, user: user._id });
         if(userCampaign){
           if(moment().isBefore(moment(userCampaign.uploadPicturesTo))){
-            var form = new multiparty.Form();
-            form.parse(req, async function (err, fields, files) {
-              if(files){
-                files = files.images;
-                var addedImages = [];
-                for (file of files) {
-                  userCampaign = await UserCampaign.findOne({ campaign : id, user: user._id });
-    
-                  if(userCampaign.images.length < userCampaign.imageCount){
-                    await imageUplader.uploadImage(file.path, 'users', user._id)
-                    .then(async (newImage) =>{
-                      await UserCampaign.findOneAndUpdate({ campaign : id, user: user._id }, { $push: { images: newImage } })
-                      addedImages.push(newImage);
-                    })
-                    .catch((err) => {
-                      console.log(err);
-                    });
+            if(userCampaign.isGiftTaken && (userCampaign.status == 1 || userCampaign.status == -2)){
+              var form = new multiparty.Form();
+              form.parse(req, async function (err, fields, files) {
+                if(files){
+                  files = files.images;
+                  var addedImages = [];
+                  for (file of files) {
+                    userCampaign = await UserCampaign.findOne({ campaign : id, user: user._id });
+      
+                    if(userCampaign.images.length < userCampaign.imageCount){
+                      await imageUplader.uploadImage(file.path, 'users', user._id)
+                      .then(async (newImage) =>{
+                        await UserCampaign.findOneAndUpdate({ campaign : id, user: user._id }, { $push: { images: newImage } })
+                        addedImages.push(newImage);
+                      })
+                      .catch((err) => {
+                        console.log(err);
+                      });
+                    }
                   }
+                  res.status(200).json({message: "ok", images: addedImages});
+                }else{
+                  res.status(400).json({message:  'no files added'});
                 }
-                res.status(200).json({message: "ok", images: addedImages});
-              }else{
-                res.status(400).json({message:  'no files added'});
-              }
-            });
+              });
+            }else{
+              res.status(400).json({message : "invalid status" });
+            }
           }else{
-            res.status(404).json({message : "Time to upload pictures has expired" });
+            res.status(400).json({message : "Time to upload pictures has expired" });
           }
       }else{
         res.status(404).json({message : "UserCampaign not found" });
