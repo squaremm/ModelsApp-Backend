@@ -64,5 +64,6 @@ exports.getStatusDescription = async (status) => {
     campaign.images = userCampaigns.images;
     campaign.statusDescription = await this.getStatusDescription(userCampaigns.status);
     campaign.isPictureUploadAllow = userCampaigns.isGiftTaken && (campaign.status == 1 || campaign.status == -2);
+    campaign.isAccepted = userCampaigns.isAccepted;
     return campaign;
  }
