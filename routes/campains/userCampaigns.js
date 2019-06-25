@@ -204,6 +204,8 @@ module.exports = function(app) {
         if(userCampaign){
           if(userCampaign.isPending){
             await UserCampaign.findOneAndUpdate({_id : userCampaign._id }, { $set: { isPending : false , isAccepted : true, status: 1 } });
+            console.log('zapisanie danych do bazy');
+        
             await pushProvider.sendCampaignAcceptedNotification(userCampaign, true);
             res.status(200).json({message: "user campaign has been accepted"});
           }else{
