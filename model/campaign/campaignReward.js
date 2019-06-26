@@ -13,6 +13,9 @@ let campaignReward = new Schema({
     position: {
       type: Number
     },
+    description: {
+      type: String
+    },
     value: {
       type: Number
     },

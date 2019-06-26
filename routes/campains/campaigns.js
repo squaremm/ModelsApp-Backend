@@ -22,7 +22,9 @@ module.exports = function(app) {
     let campaign =  req.body;
     let errors = campaignSchema.campaignSchema.validate(campaign);
     if(errors.length == 0){
-      if(campaign.tasks && campaign.rewards){
+      let rewardValidator = await validateRewards(campaign.rewards);
+      let taskValidator = await validateTasks(campaign.tasks)
+      if(rewardValidator.isValid && taskValidator.isValid){
         campaign._id = await entityHelper.getNewId('campaignId');
         campaign.mainImage = null;
         campaign.qrCode = crypto.randomBytes(20).toString('hex'),
@@ -33,7 +35,7 @@ module.exports = function(app) {
         await Campaign.insertOne(campaign);
       res.status(200).json(campaign);
       }else{
-        res.status(400).json({message: 'tasks or rewards are not defined'});
+        res.status(400).json({message: rewardValidator.error + ' ' + taskValidator.error});
       }
     }else{
       res.status(400).json(errors.map(x=>x.message));
@@ -294,4 +296,66 @@ app.post('/api/campaign/:id/images/reward/:position', async (req,res) => {
     }
 });
 
+validateTasks = async(tasks) => {
+  let validateObject = {
+    isValid: true,
+    error: ""
+  }
+  if(tasks && Array.isArray(tasks)){
+    let photoTask = tasks.find(x=>x.type == 'photo');
+    if(!photoTask){
+      validateObject.isValid = false;
+      validateObject.error = 'task of type photo must be set';
+    }else{
+      if(!photoTask.count){
+        validateObject.isValid = false;
+        validateObject.error = 'task of type photo must have count property';
+      }
+    }
+  }else{
+    validateObject.isValid = false;
+    validateObject.error = 'tasks must be set';
+  }
+  return validateObject;
+}
+
+validateRewards = async(rewards) => {
+  let validateObject = {
+    isValid: true,
+    error: ""
+  }
+  if(rewards && Array.isArray(rewards)){
+    rewards.forEach(reward => {
+      //validate isGlobal
+      if(reward.isGlobal){
+        if(reward.position){
+          validateObject.isValid = false;
+          validateObject.error = 'for global reward position is invalid';
+        }
+      }else{
+        if(!reward.position){
+          validateObject.isValid = false;
+          validateObject.error = 'for non global reward position must be set';
+        }
+      }
+      //validate credit
+      if(reward.type == 'credit'){
+        if(!reward.value){
+          validateObject.isValid = false;
+          validateObject.error = 'for credit reward value must be set';
+        }
+      }
+      if(reward.type == 'gift'){
+        if(!reward.description){
+          validateObject.isValid = false;
+          validateObject.error = 'for gift reward description must be set';
+        }
+      }
+    });
+  }else{
+    validateObject.isValid = false;
+    validateObject.error = 'rewards must be set';
+  }
+  return validateObject;
+}
 }
