@@ -56,6 +56,44 @@ module.exports = function(app) {
       res.status(400).json({message : 'not authoirze'});
     }
   });
+  app.get('/api/campaign/bookings', middleware.isAuthorized, async (req,res) => {
+    let user = await req.user;
+    if(user){
+    let userBookings = await UserCampaign
+    .aggregate([
+        {
+            '$lookup': {
+                'from': 'campaigns', 
+                'localField': 'campaign', 
+                'foreignField': '_id', 
+                'as': 'campaign'
+            }
+        }, {
+            '$unwind': {
+                'path': '$campaign'
+            }
+        }, {
+            '$match': {
+                'isAccepted': true,
+                'user': user._id
+            }
+        }
+    ]).toArray();
+    res.status(200).json(userBookings.map(x => {
+      if(moment().isBefore(moment(x.campaign.availableTill))){
+        let obj = {
+          title : x.campaign.title,
+          campaignId: x.campaign._id,
+          pickUpDate: x.slot.date ? `${x.slot.date} ${x.slot.startTime}` : null,
+          mainImage: x.campaign.mainImage
+        }
+        return obj;
+      }
+    }))
+    }else{
+      res.status(400).json({message: "user not found"});
+    }
+  });
 
   app.get('/api/campaign/:id', middleware.isAuthorized, async (req, res) => {
     let user = await req.user;
