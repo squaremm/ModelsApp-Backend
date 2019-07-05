@@ -203,9 +203,9 @@ module.exports = function(app) {
         let userCampaign = pendingCampaigns.find(x => x._id == userCampaignId);
         if(userCampaign){
           if(userCampaign.isPending){
+            let campaign = await Campaign.findOne({_id: userCampaign.campaign});
             await UserCampaign.findOneAndUpdate({_id : userCampaign._id }, { $set: { isPending : false , isAccepted : true, status: 1 } });
-
-            await pushProvider.sendCampaignAcceptedNotification(userCampaign, true);
+            await pushProvider.sendCampaignAcceptedNotification(userCampaign, true, campaign);
             res.status(200).json({message: "user campaign has been accepted"});
           }else{
             res.status(404).json({message : `user campaign was processed before to ${ userCampaign.isAccepted ? 'accepted' : 'rejected' }`});
@@ -224,8 +224,9 @@ module.exports = function(app) {
         let userCampaign = pendingCampaigns.find(x => x._id == userCampaignId);
         if(userCampaign){
           if(userCampaign.isPending){
+            let campaign = await Campaign.findOne({_id: userCampaign.campaign});
             await UserCampaign.findOneAndUpdate({_id : userCampaign._id }, { $set: { isPending : false , isAccepted : false, status: -1 } });
-            await pushProvider.sendCampaignAcceptedNotification(userCampaign, false);
+            await pushProvider.sendCampaignAcceptedNotification(userCampaign, false, campaign);
             res.status(200).json({message: "user campaign has been accepted"});
           }else{
             res.status(404).json({message : `user campaign was processed before to ${ userCampaign.isAccepted ? 'accepted' : 'rejected' }`});
