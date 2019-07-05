@@ -65,6 +65,7 @@ module.exports = function(app) {
     place.mainImage = null;
     place.instapage = null;
     place.daysOffs = [];
+    place.isActive = true;
 
     // Make all fields required
     if(!place.name || !place.type || !place.address || !place.photos || !place.location.coordinates ||
@@ -109,6 +110,8 @@ module.exports = function(app) {
         if(!newPlace){
           res.status(500).json({message : "invalid body"})
         }else{
+
+          if(newPlace.isActive !== place.isActive && newPlace.isActive) place.isActive = newPlace.isActive;
           if(newPlace.tags !== place.tags && newPlace.tags) place.tags = newPlace.tags;
           if(newPlace.phone !== place.phone && newPlace.phone) place.phone = newPlace.phone;
           if(newPlace.instapage !== place.instapage && newPlace.instapage) place.instapage = newPlace.instapage;
@@ -172,7 +175,7 @@ module.exports = function(app) {
   // Get concrete Place and give it Offers, Bookings and Intervals from another entities
   app.get('/api/place/:id', function (req, res) {
     var id = parseInt(req.params.id);
-    Place.findOne({ _id: id }, { projection: { client: 0 }}, async function (err, place) {
+    Place.findOne({ _id: id, isActive : true }, { projection: { client: 0 }}, async function (err, place) {
       if(!place){
         res.json({ message: "No such place" });
       } else {
@@ -231,9 +234,30 @@ module.exports = function(app) {
     });
   });
   
+  app.get('/api/v2/place', middleware.isAuthorized, function (req, res) {
+    Place.find({ isActive : true }, { projection: { client: 0 }}).toArray( async function (err, places) {
+      res.status(200).json(places.map(x => {
+         let newPlace = {
+           _id: x._id,
+           mainImage: x.mainImage,
+           address: x.address,
+           type: x.type,
+           name: x.name,
+           location: x.location.coordinates
+         }
+         return newPlace;
+       }));
+    });
+  });
   // Get all Places
   app.get('/api/place', function (req, res) {
-    Place.find({}, { projection: { client: 0 }}).toArray( async function (err, places) {
+    Place.find({ isActive : true }, { projection: { client: 0 }}).toArray( async function (err, places) {
+      getMoreData(places, res);
+    });
+  });
+  // Get all Places
+  app.get('/api/admin/place', function (req, res) {
+    Place.find({ }, { projection: { client: 0 }}).toArray( async function (err, places) {
       getMoreData(places, res);
     });
   });
