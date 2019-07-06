@@ -85,11 +85,13 @@ module.exports = function(app) {
           title : x.campaign.title,
           campaignId: x.campaign._id,
           pickUpDate: x.slot.date ? `${x.slot.date} ${x.slot.startTime}` : null,
-          mainImage: x.campaign.mainImage
+          mainImage: x.campaign.mainImage,
+          isGiftTaken: x.isGiftTaken,
+          location: x.location
         }
         return obj;
       }
-    }))
+    }).filter(x => x != null));
     }else{
       res.status(400).json({message: "user not found"});
     }
