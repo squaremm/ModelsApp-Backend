@@ -5,7 +5,7 @@ module.exports = {
     return passport.authenticate('jwt', { session: false }, function (err, user) {
       if (err) return next(err);
       if (!user){
-        res.json({ message: "Not authenticated" });
+        res.status(403).json({ message: "Not authenticated" });
       } else {
         req.user = user;
         next();

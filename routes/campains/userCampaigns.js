@@ -108,7 +108,7 @@ module.exports = function(app) {
       if(user && id){
         let userCampaign = await UserCampaign.findOne({campaign: id, user: user._id });
         if(userCampaign){
-          if(userCampaign.status == 1 || userCampaign.status == -2 && userCampaign.isGiftTaken){
+          if((userCampaign.status == 1 || userCampaign.status == -2) && userCampaign.isGiftTaken){
             if(userCampaign.images.length == userCampaign.imageCount){
               await UserCampaign.findOneAndUpdate({campaign: id, user: user._id }, {$set : { status: 2 }});
               res.status(200).json({message : 'ok'});
