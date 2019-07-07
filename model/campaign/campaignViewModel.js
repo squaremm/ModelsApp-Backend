@@ -63,7 +63,11 @@ exports.getStatusDescription = async (status) => {
     campaign.slot = userCampaigns.slot;
     campaign.images = userCampaigns.images;
     campaign.statusDescription = await this.getStatusDescription(userCampaigns.status);
-    campaign.isPictureUploadAllow = userCampaigns.isGiftTaken && (campaign.status == 1 || campaign.status == -2) && moment().isBefore(moment(campaign.uploadPicturesTo));
+    campaign.isPictureUploadAllow = userCampaigns.isGiftTaken && (userCampaigns.status == 1 || userCampaigns.status == -2) && moment().isBefore(moment(campaign.uploadPicturesTo));
+    campaign.isReadyForReview = userCampaigns.isGiftTaken && 
+      (userCampaigns.status == 1 || userCampaigns.status == -2) && 
+      moment().isBefore(moment(campaign.uploadPicturesTo)) &&
+      userCampaign.images.length == userCampaign.imageCount;
     campaign.isAccepted = userCampaigns.isAccepted;
     campaign.isPending = userCampaigns.isPending;
     campaign.isGiftTaken = userCampaigns.isGiftTaken;
