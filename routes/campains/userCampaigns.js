@@ -37,7 +37,7 @@ module.exports = function(app) {
               await UserCampaign.findOneAndUpdate({user: user._id, campaign: campaign._id}, {$set: {isGiftTaken: true }});
               
               let campaigns = await Campaign.find({}).toArray();
-              campaign = viewModels.toMobileViewModel(campaigns, user, true).filter(x => x._id == id)[0];
+              campaign = viewModels.toMobileViewModel(campaigns, user, true).filter(x => x._id == campaign._id)[0];
 
               res.status(200).json(await viewModels.joinCampaignWithUserCampaign(campaign, userCampaign));
             }else{
