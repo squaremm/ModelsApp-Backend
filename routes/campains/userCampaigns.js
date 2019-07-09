@@ -34,12 +34,13 @@ module.exports = function(app) {
           let userCampaign = await UserCampaign.findOne({ user: user._id, campaign: campaign._id, isPending: false, isAccepted : true});
           if(userCampaign){
             if(!userCampaign.isGiftTaken){
-              await UserCampaign.findOneAndUpdate({user: user._id, campaign: campaign._id}, {$set: {isGiftTaken: true }});
+              let updatedUserCampaign = await UserCampaign.findOneAndUpdate({user: user._id, campaign: campaign._id}, {$set: {isGiftTaken: true }}, {new: true} );
               
+
               let campaigns = await Campaign.find({}).toArray();
               campaign = viewModels.toMobileViewModel(campaigns, user, true).filter(x => x._id == campaign._id)[0];
 
-              res.status(200).json(await viewModels.joinCampaignWithUserCampaign(campaign, userCampaign));
+              res.status(200).json(await viewModels.joinCampaignWithUserCampaign(campaign, updatedUserCampaign));
             }else{
               res.status(400).json({message : "you arleady taked the gift"});
             }
