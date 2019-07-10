@@ -254,7 +254,7 @@ module.exports = function(app) {
               if(creditValue){
                 await UserCampaign.findOneAndUpdate({_id : userCampaign._id }, { $set: { status: 4 } });
                 await User.findOneAndUpdate({_id : userCampaign.userId }, {$inc: {credits : creditValue.value }});
-                let user = User.findOne({_id: userCampaign.userId });
+                let user = await User.findOne({_id: userCampaign.userId });
                 await pushProvider.creditAddNotification(user.devices, creditValue);
                 res.status(200).json({message: "user campaign has been accepted"});
               }else{
