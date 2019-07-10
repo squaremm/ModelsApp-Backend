@@ -282,7 +282,8 @@ module.exports = function(app) {
         if(userCampaign){
           if(userCampaign.status == 3){
             await UserCampaign.findOneAndUpdate({_id : userCampaign._id }, { $set: { status: -2 } });
-            await pushProvider.sendCampaignRejectedPhotosNotification(userCampaign);
+            let user = await User.findOne({_id: userCampaign.user});
+            await pushProvider.sendCampaignRejectedPhotosNotification(user.devices, userCampaign);
             res.status(200).json({message: "user campaign has been accepted"});
           }else{
             res.status(404).json({message : `invalid status should be under review`});
