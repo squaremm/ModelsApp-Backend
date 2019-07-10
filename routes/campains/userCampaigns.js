@@ -282,7 +282,7 @@ module.exports = function(app) {
         if(userCampaign){
           if(userCampaign.status == 3){
             await UserCampaign.findOneAndUpdate({_id : userCampaign._id }, { $set: { status: -2 } });
-            let user = await User.findOne({_id: userCampaign.user});
+            let user = await User.findOne({_id: userCampaign.userId});
             await pushProvider.sendCampaignRejectedPhotosNotification(user.devices, userCampaign);
             res.status(200).json({message: "user campaign has been accepted"});
           }else{
@@ -379,7 +379,7 @@ module.exports = function(app) {
                   await Campaign.findOneAndUpdate({ _id: userCampaign.campaign }, {$push: { winners : winner }});
                   await User.findOneAndUpdate({_id : userCampaign.userId }, {$inc: {credits : creditValue.value }});
                   let user = await User.findOne({_id: userCampaign.userId });
-                  await pushProvider.creditAddNotification(user.devices, creditValue);
+                  await pushProvider.creditCampaignWinNotification(user.devices, creditValue);
                   res.status(200).json({message: "you set the winner"});
                 }else{
                   res.status(404).json({message : 'reward not defined'});
