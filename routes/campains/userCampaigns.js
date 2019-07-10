@@ -255,7 +255,7 @@ module.exports = function(app) {
                 await UserCampaign.findOneAndUpdate({_id : userCampaign._id }, { $set: { status: 4 } });
                 await User.findOneAndUpdate({_id : userCampaign.userId }, {$inc: {credits : creditValue.value }});
                 let user = await User.findOne({_id: userCampaign.userId });
-                await pushProvider.creditAddNotification(user.devices, creditValue);
+                await pushProvider.creditAddCampaignNotification(user.devices, creditValue, user.credits, campaign.title);
                 res.status(200).json({message: "user campaign has been accepted"});
               }else{
                 res.status(404).json({message : 'reward not defined'});
