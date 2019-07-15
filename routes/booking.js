@@ -1,5 +1,9 @@
 var db = require('../config/connection');
 var moment = require('moment');
+var sendGrid = require('../lib/sendGrid');
+var entityHelper = require('../lib/entityHelper');
+var crypto = require('crypto');
+
 
 var User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
 db.getInstance(function (p_db) {
@@ -17,29 +21,45 @@ module.exports = function(app) {
 
   app.get('/api/place/:id/book/slots', function (req, res) {
     var id = parseInt(req.params.id);
-    var date = req.query.date;
-
+    var reqDate = req.body.date || req.query.date;
+    let day = moment(reqDate);
+    let date =  moment(reqDate).format('DD-MM-YYYY');
     if(!date) {
       res.json({ message: "Please, provide the date" });
     } else {
-      Place.findOne({ _id: id }, function (err, place) {
-        if(!place) {
-          res.json({ message: "No such place" });
-        } else {
-          Interval.findOne({ _id: place.intervals }, async function (err, intervals) {
-            if(!intervals) {
-              res.json({ message: "This place has no booking intervals" });
+      if(day.isValid()){
+          Place.findOne({ _id: id }, function (err, place) {
+            if(!place) {
+              res.json({ message: "No such place" });
             } else {
-              var newArr = await Promise.all(intervals.intervals.map(async function (interval) {
-              var taken = await Booking.countDocuments({ place: id, date: date, startTime: interval.start });
-                interval.free = place.slots - taken;
-                return interval;
-              }));
-              res.json(newArr);
-            }
-          });
-        }
-      });
+            Interval.findOne({ place: place._id }, async function (err, intervals) {
+              if(!intervals) {
+                res.json({ message: "This place has no booking intervals" });
+              } else { 
+                let dayOff = null;
+                if(place.daysOffs) dayOff = place.daysOffs.find(x=> x.date == date);
+
+                var newArr = await Promise.all(intervals.intervals.map(async function (interval) {
+                  if(interval.day == day.format('dddd')){
+                    if(dayOff && (dayOff.isWholeDay || dayOff.intervals.filter(x=>x.start == interval.start && x.end == interval.end).length > 0)){
+                      interval.free = 0;
+                    }else{
+                      var taken = await Booking.countDocuments({ place: id, date: date, startTime: interval.start, day: interval.day });
+                      interval.free = interval.slots - taken;
+                    }
+                    interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
+                    interval.timestamp = moment(`2019-01-01 ${interval.start.replace('.',':')}`).format("X");
+                    return interval;
+                  }
+                }));
+                res.json(newArr.filter(x=> x != null).sort((a,b) => a.timestamp > b.timestamp));
+              }
+            });
+          }
+        });
+      }else{
+        res.json({message: "Invalid date format, accepted format is YYYY-DD-MM"});
+      }
     }
   });
 
@@ -81,12 +101,12 @@ module.exports = function(app) {
     Booking.find({place: id}).toArray(async function (err, books) {
       var full = await Promise.all(books.map(async function (book) {
         var place = await Place.findOne({_id: book.place}, {
-          projection: { name: 1, type: 1, description: 1, socials: 1, location: 1, address: 1, photos: 1 }
+          projection: { name: 1, type: 1, description: 1, socials: 1, location: 1, address: 1, photos: 1, mainImage: 1 }
         });
         if (!place) {
           book.place = {};
         } else {
-          place.photo = place.photos[0];
+          place.photo = place.mainImage;
           delete place.photos;
           book.place = place;
         }
@@ -123,11 +143,11 @@ module.exports = function(app) {
         res.status(500);
         res.json({message: "The booking is closed and could not be deleted"});
       } else {
-        var timeDiff = moment(book.date + ' ' + book.startTime, 'DD-MM-YYYY HH.mm').diff(moment(), 'hours');
+        var timeDiff = moment(book.date + ' ' + book.startTime, 'DD-MM-YYYY HH.mm').diff(moment(), 'minutes');
 
-        if (timeDiff < 3) {
+        if (timeDiff < 60) {
           res.status(500);
-          res.json({message: "Could not be deleted. Less than 3 hours left"});
+          res.json({message: "Could not be deleted. Less than one hours left"});
         } else {
           Place.findOneAndUpdate({_id: parseInt(book.place)}, {$pull: {bookings: id}}, function (err, updated) {
             if (!updated.value) {
@@ -155,46 +175,6 @@ module.exports = function(app) {
         }
       }
     });
-  });
-
-  // Create the Booking Intervals entity
-  app.post('/api/place/:id/intervals', function (req, res) {
-    var id = parseInt(req.params.id);
-    var interval = {};
-    interval.intervals = req.body.intervals;
-    interval.place = id;
-
-    Counter.findOneAndUpdate(
-      {_id: "intervalsid"},
-      {$inc: {seq: 1}},
-      {new: true},
-      function (err, seq) {
-        if (err) console.log(err);
-        interval._id = seq.value.seq;
-
-        Place.findOneAndUpdate({_id: id}, {$set: {intervals: seq.value.seq}}, function (err, place) {
-          if (!place.value) {
-            res.json({message: "No such place "});
-          } else {
-            Interval.insertOne(interval);
-            res.json({message: "Booking intervals are added"});
-          }
-        })
-      }
-    );
-  });
-
-  // Get Booking Intervals for the specific place
-  app.get('/api/place/:id/intervals', function (req, res) {
-    var id = parseInt(req.params.id);
-
-    Interval.findOne({place: id}, function (err, interval) {
-      if (!interval) {
-        res.json({message: "No such intervals"});
-      } else {
-        res.json(interval);
-      }
-    })
   });
 
   // Add offer to the booking
@@ -227,6 +207,156 @@ module.exports = function(app) {
     })
   });
 
+  app.post('/api/v2/place/:id/book', async (req, res) => {
+    let id = parseInt(req.params.id);
+    let userID  = parseInt(req.body.userID);
+    let intervalId = req.body.intervalId;
+    let date = moment(req.body.date);
+    let dayWeek = date.format('dddd');
+
+    if(id && userID && intervalId && date.isValid()){
+        let place = await Place.findOne({ _id : id });
+        let user = await User.findOne({_id : userID });
+        let interval = await Interval.findOne({ place : id });
+        let offers = await Offer.find({place: id}).toArray();
+
+        let intervals = interval.intervals.map((interval) => {
+          interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
+          return interval;
+        });
+        let choosenInterval =  intervals.find(x=> x._id == intervalId);
+
+        if(place && user && interval && choosenInterval){
+          if(choosenInterval.day && choosenInterval.day == dayWeek){
+            if(moment(`${date.format('YYYY-MM-DD')} ${choosenInterval.start.replace('.',':')}`).isValid()){
+
+              let fullDate = moment(`${date.format('YYYY-MM-DD')} ${choosenInterval.start.replace('.',':')}`);
+              let timesValidation = await validateTimes(fullDate);
+              if(timesValidation.isValid){
+                let userValidation = await validateUserPossibility(fullDate, user, offers, place);
+                if(userValidation.isValid){
+                  let validateInterval = await validateIntervalSlots(choosenInterval, fullDate, place);
+                  if(validateInterval.free > 0){
+                    let newBooking = {
+                      _id: await entityHelper.getNewId('bookingid'),
+                      user: userID,
+                      place: id,
+                      date: moment(fullDate).format('DD-MM-YYYY'),
+                      creationDate: moment().format('DD-MM-YYYY'),
+                      closed: false,
+                      claimed: false,
+                      offers: [],
+                      offerActions: [],
+                      year: fullDate.year(),
+                      week: fullDate.isoWeek(),
+                      day: moment(fullDate).format('dddd'),
+                      payed: Math.min(...offers.map(x => x.price)) / 2,
+                      startTime: choosenInterval.start,
+                      endTime: choosenInterval.end
+                  }
+                  await Booking.insertOne(newBooking);
+                  await User.findOneAndUpdate({_id: newBooking.user}, {
+                    $push: {bookings: newBooking._id},
+                    $inc: {credits: parseInt(-1 * newBooking.payed)}
+                  });
+                  await sendBookingEmailMessage(place, newBooking);
+                  res.status(200).json({message: "Booked"});
+                }else{
+                  res.status(400).json({message:  'not enaught slots'});
+                }
+              }else{
+                res.status(400).json({message:  userValidation.error});
+              }
+            }else{
+              res.status(400).json({message:  timesValidation.error});
+            }
+          }else{
+            res.status(400).json({message: "invalid date"});
+          }
+          }else{
+            res.status(400).json({message: "choosend date not match for inteval"});
+          }
+        }else{
+          res.status(404).json({message: "invalid parameters"});
+        }
+    }else{
+      res.status(400).json({message: "invalid parameters"});
+    }
+  });
+
+  validateIntervalSlots = async (choosenInterval, date, place) => {
+    let dayOff = null;
+    if(place.daysOffs) dayOff = place.daysOffs.find(x=> x.date == date.format('DD-MM-YYYY'));
+
+    if(choosenInterval.day == date.format('dddd')){
+      if(dayOff && (dayOff.isWholeDay || dayOff.intervals.filter(x=>x.start == choosenInterval.start && x.end == choosenInterval.end).length > 0)){
+        choosenInterval.free = 0;
+      }else{
+        var taken = await Booking.countDocuments({ place: place._id, date: date.format('DD-MM-YYYY'), startTime: choosenInterval.start, day: choosenInterval.day });
+        choosenInterval.free = choosenInterval.slots - taken;
+      }
+      return choosenInterval;
+    }
+    return choosenInterval;
+  }
+  validateUserPossibility = async (fullDate, user, offers, place) => {
+    let validation = {
+      isValid : false,
+      error: ''
+    }
+    let week = fullDate.isoWeek();
+    let year = fullDate.year();
+    let usersBookingsWeek = await Booking.countDocuments({ user: user._id, year: year , week: week });
+    let usersBookingsWeekPlace = await Booking.countDocuments({ user: user._id, year: year , week: week, place : place._id });
+    let usersBookingsSamePlaceDate = await Booking.countDocuments({ user: user._id, place: place._id, date: {$eq: fullDate.format('DD-MM-YYYY')}  });
+
+    if(usersBookingsSamePlaceDate == 0){
+      if(place.type.toLowerCase() == 'gym' || (place.type.toLowerCase() != 'gym' && usersBookingsWeek < 10 && usersBookingsWeekPlace < 3)){
+        let minOfferPrice =  Math.min(...offers.map(x => x.price)) / 2;
+        if(minOfferPrice <= user.credits){
+          validation.isValid = true;
+        }else{
+          validation.error = 'you dont have enaught credits';
+        }
+      }else{
+        validation.error = 'you arleady made max bookings for this week';
+      }
+    }else{
+      validation.error = 'you arleady made booking today here';
+    }
+    return validation;
+  }
+  validateTimes = async (fullDate) => {
+    let validation = {
+      isValid : false,
+      error: ''
+    }
+    if(fullDate.isValid()){
+      let rightRange = moment().add(7, 'days');
+      var diffSecods = moment.duration(fullDate.diff(moment())).asSeconds();
+
+      //handle 7 days forward
+      if(!fullDate.isAfter(rightRange)){
+        //check if interval is in past
+        if(fullDate.isAfter(moment())){ 
+          // check difference between now and inteval is if is bigger then hour
+          if(diffSecods > 3600){
+            validation.isValid = true;
+          }else{
+            validation.error = "there must be at least on hour before booking"; 
+          }
+        }else{
+          validation.error = "the slot is in the past";
+        }
+      }else{
+        validation.error = "you can book place max 7 days forward";
+      }
+    }else{
+      validation.error = "invalid date";
+    }
+    return validation;
+}
+  
 
   // Create the Booking and link it with User and the Place
   // Using Intervals for it
@@ -239,12 +369,13 @@ module.exports = function(app) {
       var newBooking = {};
       newBooking.user = parseInt(req.body.userID);
       newBooking.place = id;
-      newBooking.date = req.body.date;
+      newBooking.date = req.body.date; //moment(req.body.date).format('DD-MM-YYYY');
       newBooking.creationDate = moment().format('DD-MM-YYYY');
       newBooking.closed = false;
       newBooking.claimed = false;
       newBooking.offers = [];
       newBooking.offerActions = [];
+      //newBooking.day = moment(req.body.date).format('dddd');
 
       var minOffer;
       var minOfferPrice = 0;
@@ -259,78 +390,81 @@ module.exports = function(app) {
         minOfferPrice = minOffer[0]['price'];
       }
 
-      Interval.findOne({place: id}, function (err, interval) {
-        if (!interval) {
-          res.status(500);
-          res.json({message: "No intervals for this place"});
-        } else {
-          newBooking.startTime = interval.intervals[intervalNum]['start'];
-          newBooking.endTime = interval.intervals[intervalNum]['end'];
-
-          Booking.findOne({
-            place: id,
-            date: newBooking.date,
-            user: newBooking.user,
-            closed: false
-          }, {projection: {_id: 1}}, function (err, book) {
-            if (book) {
-              res.status(500);
-              res.json({message: "Sorry, you have already booked a spot for that day here"});
-            } else {
-              Booking.find({
+      Interval.findOne({place: id}, async function (err, interval) {
+        if (!interval || !interval.intervals[intervalNum]) {
+          res.status(404).json({message: "No intervals for this place"});
+        } 
+        else {
+              newBooking.startTime = interval.intervals[intervalNum]["start"];
+              newBooking.endTime = interval.intervals[intervalNum]["end"];
+  
+              Booking.findOne({
                 place: id,
                 date: newBooking.date,
-                startTime: newBooking.startTime,
+                user: newBooking.user,
                 closed: false
-              }, {projection: {_id: 1}}).toArray(function (err, books) {
-
-                Place.findOne({_id: id}, {slots: 1}, function (err, place) {
-                  if (!place) {
-                    res.json({message: "No such place"});
-                  } else {
-                    if (books.length >= place.slots) {
-                      res.status(500);
-                      res.json({message: "Sorry, all slots are booked for this time"});
+              }, {projection: {_id: 1}}, function (err, book) {
+              if (book) {
+                res.status(500);
+                res.json({message: "Sorry, you have already booked a spot for that day here"});
+              } else {
+                Booking.find({
+                  place: id,
+                  date: newBooking.date,
+                  startTime: newBooking.startTime,
+                  closed: false
+                }, {projection: {_id: 1}}).toArray(function (err, books) {
+  
+                  Place.findOne({_id: id}, {slots: 1}, function (err, place) {
+                    if (!place) {
+                      res.json({message: "No such place"});
                     } else {
-
-                      // if(moment().isBefore(moment(newBooking.date + ' ' + newBooking.startTime, 'DD-MM-YYYY HH.mm'))) {
-                      Counter.findOneAndUpdate({_id: "bookingid"}, {$inc: {seq: 1}}, {new: true}, function (err, seq) {
-                        if (err) console.log(err);
-                        newBooking._id = seq.value.seq;
-
-                        User.findOne({_id: newBooking.user}, {projection: {credits: 1}}, function (err, user) {
-                          if (!user) {
-                            res.json({message: "No such user"});
-                          } else {
-                            if (user.credits < minOfferPrice) {
-                              res.status(402);
-                              res.json({message: "Sorry, you have not enough credits."});
+                      if (books.length >= newBooking.slot) {
+                        res.status(500);
+                        res.json({message: "Sorry, all slots are booked for this time"});
+                      } else {
+  
+                        // if(moment().isBefore(moment(newBooking.date + ' ' + newBooking.startTime, 'DD-MM-YYYY HH.mm'))) {
+                        Counter.findOneAndUpdate({_id: "bookingid"}, {$inc: {seq: 1}}, {new: true}, function (err, seq) {
+                          if (err) console.log(err);
+                          newBooking._id = seq.value.seq;
+                          
+                          User.findOne({_id: newBooking.user}, {projection: {credits: 1}}, function (err, user) {
+                            if (!user) {
+                              res.json({message: "No such user"});
                             } else {
-                              newBooking.payed = parseInt(minOfferPrice / 2);
-
-                              Place.findOneAndUpdate({_id: id}, {$push: {bookings: seq.value.seq}}, function () {
-                                User.findOneAndUpdate({_id: newBooking.user}, {
-                                  $push: {bookings: seq.value.seq},
-                                  $inc: {credits: parseInt(minOfferPrice / (-2))}
+                              if (user.credits < minOfferPrice) {
+                                res.status(402);
+                                res.json({message: "Sorry, you have not enough credits to book place and take the cheapeste."});
+                              } else {
+                                newBooking.payed = parseInt(minOfferPrice / 2);
+  
+                                Place.findOneAndUpdate({_id: id}, {$push: {bookings: seq.value.seq}}, function () {
+                                  User.findOneAndUpdate({_id: newBooking.user}, {
+                                    $push: {bookings: seq.value.seq},
+                                    $inc: {credits: parseInt(minOfferPrice / (-2))}
+                                  });
+                                  Booking.insertOne(newBooking);
+                                  res.json({message: "Booked"});
                                 });
-                                Booking.insertOne(newBooking);
-                                res.json({message: "Booked"});
-                              });
+
+                                Booking.insertOne(newBooking).then((booking) => {
+                                  sendBookingEmailMessage(place, newBooking).then(()=> {
+                                    res.json({message: "Booked"});
+                                  });
+                                });
+                                //res.json({message: "Booked"});
+                              };
                             }
-                          }
+                          });
                         });
-                      });
-                      // } else {
-                      //   res.status(500);
-                      //   res.json({ message: "The time has gone" });
-                      // }
+                      }
                     }
-                  }
+                  });
                 });
-              });
-            }
-          });
-        }
+              }
+            });
+          }
       });
     } else {
       res.json({message: "Required fields are not fulfilled"});
@@ -362,4 +496,18 @@ module.exports = function(app) {
       }
     });
   });
+  sendBookingEmailMessage = async (place, booking) => {
+    let listToSend = [];
+    var user = await User.findOne({_id: booking.user});
+    let line = `booking date: ${ booking.date }, time:  ${booking.startTime }-${booking.endTime },`;
+    if(user){
+      line += ` user:  ${user.email }, ${user.name } ${user.surname } `;
+    }
+    listToSend.push(line);
+    if(place && place.notificationRecivers && Array.isArray(place.notificationRecivers)){
+      place.notificationRecivers.forEach(async (reciver) => {
+        await sendGrid.sendBookingCreated(reciver.email, listToSend, place);
+      });
+    }
+  }
 }

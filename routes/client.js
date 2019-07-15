@@ -73,29 +73,7 @@ module.exports = function(app) {
       }
     });
   });
-
-  // Create the Booking Intervals entity
-  app.post('/api/client/intervals', middleware.isClient, function (req, res) {
-    var id = req.user._id;
-    var interval = {};
-    interval.intervals = req.body.intervals;
-    interval.place = id;
-
-    Counter.findOneAndUpdate({ _id: "intervalsid" }, { $inc: { seq: 1 }}, { new: true }, function (err, seq) {
-      if (err) console.log(err);
-      interval._id = seq.value.seq;
-
-      Place.findOneAndUpdate({ _id: id }, { $set: { intervals: seq.value.seq }}, function (err, place) {
-        if (!place.value) {
-          res.json({ message: "No such place" });
-        } else {
-          Interval.insertOne(interval);
-          res.json({ message: "Booking intervals are added" });
-        }
-      })
-    });
-  });
-
+  
   app.post('/api/client/offer', middleware.isClient, function (req, res) {
     var id = req.user._id;
     res.redirect(307, '/api/place/' + id + '/offer');

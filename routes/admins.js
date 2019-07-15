@@ -1,56 +1,8 @@
 var db = require('../config/connection');
 var middleware = require('../config/authMiddleware');
-var apn = require('apn');
 var moment = require('moment');
-
-var apnProvider = new apn.Provider({
-  production: false,
-});
-
-async function userAcceptNotification(devices) {
-  var note = new apn.Notification();
-    note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
-    note.badge = 1;
-    note.alert = `\uD83D\uDCE7 \u2709 Your account has beed accepted!`;
-    note.payload = { message: `Now you have access to all resources`, pushType: 'userAccept' };
-  devices.forEach(async (device) => {
-     await apnProvider.send(note, device);
-  });
-  
-}
-async function userRejectNotification(devices) {
-  var note = new apn.Notification();
-  note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
-  note.badge = 1;
-  note.alert = `\uD83D\uDCE7 \u2709 Your account has beed rejected!`;
-  note.payload = { message: `You lost access to account`, pushType: 'userRejected' };
-
-  devices.forEach(async (device) => {
-     await apnProvider.send(note, device);
-  });
-}
-async function actionAcceptNotification(devices) {
-    var note = new apn.Notification();
-    note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
-    note.badge = 1;
-    note.alert = `\uD83D\uDCE7 \u2709 You get new credits!`;
-    note.payload = { message: `We accepted your action`, pushType: 'actionAccepted' };
-  
-    devices.forEach(async (device) => {
-       await apnProvider.send(note, device);
-    });
-}
-async function creditAddNotification(devices) {
-  var note = new apn.Notification();
-  note.expiry = Math.floor(Date.now() / 1000) + 3600; // Expires 1 hour from now.
-  note.badge = 1;
-  note.alert = `\uD83D\uDCE7 \u2709 You get new credits!`;
-  note.payload = { message: `You get extra credits have fun!`, pushType: 'creditsAdded' };
-
-  devices.forEach(async (device) => {
-     await apnProvider.send(note, device);
-  });
-}
+var sendgrid = require('../lib/sendGrid');
+var pushProvider = require('../lib/pushProvider');
 
 var User, Place, Offer, OfferPost, Booking;
 db.getInstance(function (p_db) {
@@ -59,21 +11,27 @@ db.getInstance(function (p_db) {
   Offer = p_db.collection('offers');
   OfferPost = p_db.collection('offerPosts');
   Booking = p_db.collection('bookings');
+  OfferPostArchive = p_db.collection('offerPostArchive');
 });
 
 module.exports = function(app) {
 
-  app.put(['/api/admin/model/:id/accept'], function (req, res) {
+  app.put(['/api/admin/model/:id/accept'], async function (req, res) {
     var id = parseInt(req.params.id);
     var level = parseInt(req.body.level) || 4;
+    let isPaymentRequired = req.body.isPaymentRequired;
+    if(isPaymentRequired){
+      await User.findOneAndUpdate({ _id: id }, { $set: { isPaymentRequired: isPaymentRequired }});
+    }
 
-    User.findOneAndUpdate({ _id: id }, { $set: { accepted: true, level: level, isAcceptationPending: false }},{new: true}, function (err, updated) {
+    User.findOneAndUpdate({ _id: id }, { $set: { accepted: true, level: level, isAcceptationPending: false }},{new: true}, async function (err, updated) {
       if(err) res.json({ message: "error" });
       if(updated.value !== undefined && updated.value !== null){
         var devices = updated.value.devices;
 
-        userAcceptNotification(devices)
-        .then(x=>{
+        pushProvider.userAcceptNotification(devices, isPaymentRequired)
+        .then(async (x) =>{
+          await sendgrid.sendUserAcceptedMail(updated.value.email, req);
           res.json({ message: "The model has been accepted" });
         })
         .catch(err =>{
@@ -92,7 +50,7 @@ module.exports = function(app) {
       if(updated.value !== undefined && updated.value !== null){
         var devices = updated.value.devices;
 
-        userRejectNotification(devices)
+        pushProvider.userRejectNotification(devices)
         .then(x=>{
           res.json({ message: "The model has been rejected" });
         })
@@ -105,13 +63,28 @@ module.exports = function(app) {
       }
     });
   });
+  app.put(['/api/admin/model/:id/payment'], async function (req, res) {
+    var id = parseInt(req.params.id);
+    let isPaymentRequired = req.body.isPaymentRequired;
+    if(id && typeof isPaymentRequired === "boolean"){
+      let user =  await User.findOne({_id: id});
+      if(user){
+        await User.findOneAndUpdate({_id: id}, {$set: { isPaymentRequired : isPaymentRequired }});
+        res.status(200).json({message : "ok"});
+      }else{
+        res.status(400).json({ message: "No such user" });
+      }
+    }else{
+      res.status(400).json("invalid parameters");
+    }
+  });
 
   app.put('/api/admin/model/:id/extraCredits', (req, res) => {
     var id = parseInt(req.params.id);
     var creditValue = parseInt(req.body.credits);
     if(id && creditValue){
       User.findOneAndUpdate({ _id : id }, { $inc: { credits: creditValue }}).then( (user) => {
-        creditAddNotification(user.value.devices).then(() =>{
+        pushProvider.creditAddNotification(user.value.devices, creditValue).then(() =>{
           res.status(200).json({message: "Credits added"});
         });
       });
@@ -184,7 +157,7 @@ module.exports = function(app) {
         if(!offerPost.accepted){
           User.findOneAndUpdate({ _id: offerPost.user }, { $inc: { credits: offerPost.credits } })
             .then(user => {
-              actionAcceptNotification(user.value.devices)
+              pushProvider.actionAcceptNotification(user.value.devices)
                 .then(() => {
                   OfferPost.findOneAndUpdate({_id: id },{ $set: { accepted: true, approvementLink: approvementLink } })
                     .then(() => {
@@ -213,9 +186,13 @@ module.exports = function(app) {
     var id = parseInt(req.params.id);
     //find post action in db
     OfferPost.findOne({ _id: id })
-      .then(offerPost => {
+      .then(async offerPost => {
         if(offerPost.accepted){
           res.status(400).json({message: 'action arleady accepted'});
+        }else{
+          await OfferPost.deleteOne({ _id : id });
+          await OfferPostArchive.findOneAndUpdate({_id : 0 }, { $push : { posts : offerPost } });
+          res.status(400).json({message: 'action rejected'});
         }
       })
       .catch(err => {
@@ -274,16 +251,7 @@ module.exports = function(app) {
   
   app.get('/api/admin/users/pending', (req, res) => {
     User.find({ isAcceptationPending: true }).toArray(async function (err, users) {
-      res.status(200).json(users.map(x=> { 
-        return {
-          id: x._id,
-          photo: x.photo,
-          email: x.email,
-          phone: x.phone,
-          birthDate: x.birthDate,
-          instagram: x.instagram
-        }
-    }));
+      res.status(200).json(users);
     });
   });
   app.get('/api/admin/users/offerPosts', (req,res) =>{
@@ -304,7 +272,8 @@ module.exports = function(app) {
             _id : x._id,
             credits: x.credits,
             name: x.name,
-            instagramName: x.instagram.full_name,
+            surname: x.surname,
+            instagramName: x.instagram ? x.instagram.full_name : x.instagramName,
             email:  x.email,
             photo: x.photo
           }

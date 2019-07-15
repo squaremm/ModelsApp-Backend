@@ -21,14 +21,13 @@ module.exports = function(passport) {
         passReqToCallback : true
       },
       async function (req, accessToken, refreshToken, profile, done) {
-       console.log("Passport function entry");
         // Only if user is not authenticated
         if(!req.user){
-          console.log('req not user exist');
+
           // If there is an existing user, check for new data in his Insta profile and update it
           var existingUser = await User.findOne({'instagram.id': profile.id});
           if (existingUser) {
-            console.log('user exist');
+
             if(existingUser.photo != profile._json.data.profile_picture ||
               existingUser.instagram.counts.media != profile._json.data.counts.media ||
               existingUser.instagram.counts.followed_by != profile._json.data.counts.followed_by){
@@ -41,11 +40,9 @@ module.exports = function(passport) {
                 }
               );
             } else{
-              console.log('same data?');
               return done(null, existingUser);
             }
           } else {
-            console.log("start to create new user");
             // If it is the first time for the user - create new user in DB
             var newUser = {};
             newUser.photo = profile._json.data.profile_picture;
@@ -62,7 +59,9 @@ module.exports = function(passport) {
             newUser.devices = [];
             newUser.plan = {};
             newUser.isAcceptationPending = true;
-
+            newUser.loginTypes = [];
+            newUser.loginTypes.push('instagram');
+            
             // Update counters. In mongo we need an another collection to store the autoincrement
             Counter.findOneAndUpdate(
               { _id: "userid" },
@@ -79,6 +78,7 @@ module.exports = function(passport) {
                     console.log(err);
                     return done(err);
                   }
+                  console.log(user.ops[0]);
                   return done(null, user.ops[0]);
                 });
               }

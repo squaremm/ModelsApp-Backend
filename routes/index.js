@@ -1,6 +1,7 @@
 var db = require('../config/connection');
 var crypto = require('crypto');
 var apn = require('apn');
+var config =  require('../config/index');
 
 var apnProvider = new apn.Provider({
   production: false,
@@ -99,4 +100,16 @@ module.exports = function(app) {
       res.json(codes);
     });
   });
+  
+  app.post('/api/ios/version', (req, res) => {
+    let iosVersion = req.body.version;
+    if(iosVersion){
+      iosVersion = parseInt(iosVersion);
+      if(iosVersion < parseInt(config.iosVersion)){
+        res.status(200).json({version : 'ok'})
+      }else{
+        res.status(400).json({version : 'not valid'})
+      }
+    }
+  })
 };
