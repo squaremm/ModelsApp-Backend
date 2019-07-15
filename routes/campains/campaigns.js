@@ -298,6 +298,42 @@ if(id){
   res.status(404).json({message : "invalid parameters"});
 }
 });
+  
+ app.post('/api/campaign/:id/images/reward/global', async (req,res) => {
+  var id = parseInt(req.params.id);
+  if(id) {
+    var campaign = await Campaign.findOne({ _id : id });
+    if(campaign){
+    var form = new multiparty.Form();
+    form.parse(req, async function (err, fields, files) {
+      if(files){
+        files = files.images;
+        for (file of files) {
+          await imageUplader.uploadImage(file.path, 'campaign', campaign._id)
+            .then(async (newImage) => {
+              
+              await Campaign.updateOne(
+                { '_id': id },
+                { $set: { 'rewards.$[t].mainImage': newImage.url }},
+                { arrayFilters: [ {"t.isGlobal": true  } ] });
+
+                res.status(200).json({message: "ok"});
+            })
+            .catch((err) => {
+              console.log(err);
+            });
+        }
+      }else{
+        res.status(400).json({message : 'no files added'});
+      }
+    });
+  }else{
+    res.status(404).json({message : "campaign not found" });
+  }
+  }else{
+    res.status(404).json({message : "invalid parameters"});
+    }
+});
 
 app.post('/api/campaign/:id/images/reward/:position', async (req,res) => {
   var id = parseInt(req.params.id);
@@ -337,41 +373,7 @@ app.post('/api/campaign/:id/images/reward/:position', async (req,res) => {
 });
   
   
-  app.post('/api/campaign/:id/images/reward/global', async (req,res) => {
-  var id = parseInt(req.params.id);
-  if(id) {
-    var campaign = await Campaign.findOne({ _id : id });
-    if(campaign){
-    var form = new multiparty.Form();
-    form.parse(req, async function (err, fields, files) {
-      if(files){
-        files = files.images;
-        for (file of files) {
-          await imageUplader.uploadImage(file.path, 'campaign', campaign._id)
-            .then(async (newImage) => {
-              
-              await Campaign.updateOne(
-                { '_id': id },
-                { $set: { 'rewards.$[t].mainImage': newImage.url }},
-                { arrayFilters: [ {"t.isGlobal": true  } ] });
 
-                res.status(200).json({message: "ok"});
-            })
-            .catch((err) => {
-              console.log(err);
-            });
-        }
-      }else{
-        res.status(400).json({message : 'no files added'});
-      }
-    });
-  }else{
-    res.status(404).json({message : "campaign not found" });
-  }
-  }else{
-    res.status(404).json({message : "invalid parameters"});
-    }
-});
   
   
   
