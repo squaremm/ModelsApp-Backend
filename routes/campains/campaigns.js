@@ -352,7 +352,8 @@ app.post('/api/campaign/:id/images/reward/:position', async (req,res) => {
               
               await Campaign.updateOne(
                 { '_id': id },
-                { $set: { 'rewards.mainImage': newImage.url }});
+                { $set: { 'rewards.$[t].mainImage': newImage.url }},
+                { arrayFilters: [ {"t.isGlobal": true  } ] });
 
                 res.status(200).json({message: "ok"});
             })
