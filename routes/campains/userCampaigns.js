@@ -205,9 +205,16 @@ module.exports = function(app) {
         if(userCampaign){
           if(userCampaign.isPending){
             let campaign = await Campaign.findOne({_id: userCampaign.campaign});
-            await UserCampaign.findOneAndUpdate({_id : userCampaign._id }, { $set: { isPending : false , isAccepted : true, status: 1 } });
-            await pushProvider.sendCampaignAcceptedNotification(userCampaign, true, campaign);
-            res.status(200).json({message: "user campaign has been accepted"});
+            let user = userCampaign.user;
+            if(user.credits >= campaign.credits){
+              await User.findOneAndUpdate({_id: user._id}, { $inc: { credits : - campaign.credits }});
+              await Campaign.findOneAndUpdate({_id: campaign._id}, { $push: { acceptedUsers: user._id }});
+              await UserCampaign.findOneAndUpdate({_id : userCampaign._id }, { $set: { isPending : false , isAccepted : true, status: 1 } });
+              await pushProvider.sendCampaignAcceptedNotification(userCampaign, true, campaign);
+              res.status(200).json({message: "user campaign has been accepted"});
+            }else{
+              res.status(400).json({message: "User do not have enaught credits"});
+            }
           }else{
             res.status(404).json({message : `user campaign was processed before to ${ userCampaign.isAccepted ? 'accepted' : 'rejected' }`});
           }
@@ -400,8 +407,6 @@ module.exports = function(app) {
         res.status(404).json({message : "invalid parameters"});
       }
     });
-
-
 
     getUserCampaignsByStatus = async (status, campaignId) => {
       let userByStatus = await UserCampaign
