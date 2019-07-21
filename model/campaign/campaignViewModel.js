@@ -13,7 +13,7 @@ exports.toMobileViewModel = (campaigns, currentUser, withDetails) => {
         x.isParticipant = x.users.filter(x=> x == currentUser._id).length > 0;
         x.isWinner = x.winners.filter(x => x.user == currentUser._id).length > 0;
         x.hasWinner = x.winners.length > 0;
-       // x.participantsCount = x.acceptedUsers ? x.maxParticipantsCount - x.acceptedUsers.length : x.maxParticipantsCount;
+        x.participantsCount = x.acceptedUsers ? x.maxParticipantsCount - x.acceptedUsers.length : x.maxParticipantsCount;
         delete x.startAt;
         delete x.uploadPicturesInstagramTo;
         delete x.uploadPicturesTo;
