@@ -423,7 +423,7 @@ app.get('/api/admin/campaign/:id/booking', async (req, res) => {
                });
            }
        }
-       for (const item of result.sort((a,b) => new Moment(a.date).format('YYYYMMDD') - new Moment(b.date).format('YYYYMMDD'))) {
+       for (const item of result.sort((a,b) => moment(a.date).format('YYYYMMDD') - moment(b.date).format('YYYYMMDD'))) {
          let bookingDate = {
             date: item.date,
             day: item.day
