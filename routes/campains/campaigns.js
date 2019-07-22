@@ -48,6 +48,46 @@ module.exports = function(app) {
     let campaigns = await Campaign.find({}).toArray();
     res.status(200).json(campaigns);
   });
+  app.get('/api/campaign/bookings', middleware.isAuthorized, async (req,res) => {
+    let user = await req.user;
+    if(user){
+    let userBookings = await UserCampaign
+    .aggregate([
+        {
+            '$lookup': {
+                'from': 'campaigns', 
+                'localField': 'campaign', 
+                'foreignField': '_id', 
+                'as': 'campaign'
+            }
+        }, {
+            '$unwind': {
+                'path': '$campaign'
+            }
+        }, {
+            '$match': {
+                'isAccepted': true,
+                'user': user._id
+            }
+        }
+    ]).toArray();
+    res.status(200).json(userBookings.map(x => {
+      if(moment().isBefore(moment(x.campaign.availableTill))){
+        let obj = {
+          title : x.campaign.title,
+          campaignId: x.campaign._id,
+          pickUpDate: x.slot && x.slot.date ? `${x.slot.date} ${x.slot.startTime}` : null,
+          mainImage: x.campaign.mainImage,
+          isGiftTaken: x.isGiftTaken,
+          location: x.location
+        }
+        return obj;
+      }
+    }).filter(x => x != null));
+    }else{
+      res.status(400).json({message: "user not found"});
+    }
+  });
   
 
   app.get('/api/campaign/:id', middleware.isAuthorized, async (req, res) => {
@@ -505,6 +545,7 @@ app.delete('/api/admin/campaign/:id', async (req, res) => {
   }
 });
 
+
 app.get('/api/campaign', middleware.isAuthorized, async (req, res) => {
   let user = await req.user;
   if(user){
@@ -514,50 +555,6 @@ app.get('/api/campaign', middleware.isAuthorized, async (req, res) => {
     res.status(400).json({message : 'not authoirze'});
   }
 });
-app.get('/api/campaign/bookings', middleware.isAuthorized, async (req,res) => {
-  let user = await req.user;
-  if(user){
-  let userBookings = await UserCampaign
-  .aggregate([
-      {
-          '$lookup': {
-              'from': 'campaigns', 
-              'localField': 'campaign', 
-              'foreignField': '_id', 
-              'as': 'campaign'
-          }
-      }, {
-          '$unwind': {
-              'path': '$campaign'
-          }
-      }, {
-          '$match': {
-              'isAccepted': true,
-              'user': user._id
-          }
-      }
-  ]).toArray();
-  res.status(200).json(userBookings.map(x => {
-    if(moment().isBefore(moment(x.campaign.availableTill))){
-      let obj = {
-        title : x.campaign.title,
-        campaignId: x.campaign._id,
-        pickUpDate: x.slot.date ? `${x.slot.date} ${x.slot.startTime}` : null,
-        mainImage: x.campaign.mainImage,
-        isGiftTaken: x.isGiftTaken,
-        location: x.location
-      }
-      return obj;
-    }
-  }).filter(x => x != null));
-  }else{
-    res.status(400).json({message: "user not found"});
-  }
-});
-
-  
-  
-  
 
 validateTasks = async(tasks) => {
   let validateObject = {
