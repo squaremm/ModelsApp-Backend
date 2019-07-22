@@ -21,6 +21,7 @@ exports.toMobileViewModel = (campaigns, currentUser, withDetails) => {
         delete x.availableTill;
         delete x.users;
         delete x.qrCode;
+        delete x.acceptedUsers;
         if(!withDetails){
           delete x.rewards;
           delete x.tasks;
