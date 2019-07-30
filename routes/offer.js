@@ -4,6 +4,8 @@ var moment = require('moment');
 var imageUplader = require('../lib/imageUplader');
 var multiparty = require('multiparty');
 var pushProvider = require('../lib/pushProvider');
+var dfs = require('obj-traverse/lib/obj-traverse');
+var entityHelper = require('../lib/entityHelper');
 
 var User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
 db.getInstance(function (p_db) {
@@ -69,7 +71,31 @@ module.exports = function(app) {
       res.json(offers);
     });
   });
-
+  app.get('/api/v2/offer/:id/booking/:bookingId/actions',middleware.isAuthorized, async (req, res) =>{
+    var offerId = parseInt(req.params.id);
+    var bookingId = parseInt(req.params.bookingId);
+    if(offerId && bookingId){
+      let offer = await Offer.findOne({ _id: offerId });
+      let booking = await Booking.findOne({_id: bookingId})
+      if(offer && booking){
+        var offerActions = booking.actions;
+        if(offerActions.filter(offerAction => offerAction.offerId == offerId).length > 0) {
+          res.status(200).json(offerActions.filter(offerAction => offerAction.offerId == offerId)[0].actions);
+        }else{
+          var offerAction = {
+            offerId: offerId,
+            actions: offer.actions
+          };
+          await Booking.findOneAndUpdate({_id: bookingId}, { $push : { actions: offerAction }});
+          res.status(200).json(offerAction.actions);
+        }
+      }else{
+        res.status(404).json({message: "offer or booking not found"});
+      }
+    }else{
+      res.status(400).json({message: "invalid parameters"});
+    }
+  });
   app.get('/api/offer/:id/booking/:bookingId/actions', async (req, res) =>{
     var offerId = parseInt(req.params.id);
     var bookingId = parseInt(req.params.bookingId);
@@ -382,6 +408,87 @@ module.exports = function(app) {
     });
   });
 
+
+  getBookingAction = async (actionId, actions) => {
+    let foundedBookingAction
+    for(let action of actions){
+      let founded =  dfs.findFirst(action, 'subActions', {id: actionId});
+      if(founded){
+        foundedBookingAction = founded;
+      } 
+    }
+    return foundedBookingAction;
+  }
+
+  app.post('/api/v2/offer/:id/booking/:bookingId/post',middleware.isAuthorized , async function (req, res) {
+  
+    let bookingId = parseInt(req.params.bookingId);
+    let offerId = parseInt(req.params.id);
+    let user = await req.user;
+
+    if(bookingId & offerId){
+      let offer = await Offer.findOne({_id: offerId});
+      let booking = await Booking.findOne({_id: bookingId});
+      if(offer && booking){
+        var form = new multiparty.Form();
+        await form.parse(req, async function (err, fields, files) {
+          let actionId = fields.actionId[0];
+          let dbOfferPost = await OfferPost.findOne({offer: offerId, booking: bookingId, actionId: actionId});
+          let bookingAction = booking.actions.filter(x=>x.offerId == offer._id)[0];
+          let foundedBookingAction;
+          if(bookingAction){
+            foundedBookingAction = await getBookingAction(actionId, bookingAction.actions);
+            if(foundedBookingAction && ( !dbOfferPost || foundedBookingAction.maxAttempts - foundedBookingAction.attempts > 0)){
+              foundedBookingAction.attempts = foundedBookingAction.attempts + 1;
+              if(!foundedBookingAction.isPictureRequired || (foundedBookingAction.isPictureRequired && files && files.images && files.images.length > 0)){
+                let id = await entityHelper.getNewId('offerpostid')
+                let postOffer = {
+                  _id: id,
+                  type: foundedBookingAction.type,
+                  credits: foundedBookingAction.parentId ? (await getBookingAction(foundedBookingAction.parentId, bookingAction.actions)).credits :   foundedBookingAction.credits,
+                  offer: offer._id,
+                  stars: fields.star ? fields.star[0] : 0,
+                  creationDate: moment().format('DD-MM-YYYY'),
+                  link: fields.link ? fields.link[0] : null,
+                  feedback: fields.feedback ? fields.feedback[0] : null,
+                  place: offer.place,
+                  accepted: false,
+                  user: user._id,
+                  booking: booking._id,
+                  actionId: actionId,
+                  image: files.images.length && foundedBookingAction.isPictureRequired > 0 ?  await imageUplader.uploadImage(files.images[0].path, 'postOffer', offer._id) : null
+                }
+                foundedBookingAction.isActive = foundedBookingAction.maxAttempts - foundedBookingAction.attempts > 0;
+                await OfferPost.insertOne(postOffer);
+                await Place.findOneAndUpdate({_id: offer.place}, { $push: { posts: id }});
+                await Booking.findOneAndUpdate(
+                  { _id : booking._id },
+                  { $pull : { actions: { offerId: offer._id  } } });
+                await Booking.findOneAndUpdate(
+                  { _id : booking._id },
+                  { $push: { actions : bookingAction }});
+
+                await User.findOneAndUpdate({_id: postOffer.user}, { $push: {offerPosts: id} })
+                await User.findOneAndUpdate({_id: postOffer.user}, { $push: {offerPostsV2: { id: id, createdAt: moment().format('DD-MM-YYYY HH:mm:ss')}}});
+                res.status(200).json({message: "Offer post created"})
+              }else{
+                res.status(400).json({message: "Not all fields are provided"});
+              }
+            }else{
+              res.status(400).json({message: "Cannot create actions"});
+            }
+          }else{
+            res.status(400).json({message: "Cannot create actions"});
+          }
+        });
+      }else{
+        res.status(400).json({message: "Booking or offer not found"});
+      }
+    }else{
+      res.status(400).json({message: "invalid parameters"});
+    }
+  });
+
 app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, function (req, res) {
   
     var bookingId = parseInt(req.params.bookingId);
@@ -444,8 +551,6 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
                           { $set: { 'offerActions.$.actions.$[t].active': false }},
                           { arrayFilters: [ {"t.type": offerPost.type  } ] } , function(err, booking){
 
-                            console.log(booking);
-                            console.log(err);
                             Place.findOneAndUpdate({_id: offer.value.place}, {$push: {posts: seq.value.seq}});
                             User.findOneAndUpdate({_id: offerPost.user}, {$push: {offerPosts: seq.value.seq}}, function (err, user) {
                               if (!user.value) {
