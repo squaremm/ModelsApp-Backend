@@ -19,49 +19,111 @@ db.getInstance(function (p_db) {
 
 module.exports = function(app) {
 
-  app.get('/api/place/:id/book/slots', function (req, res) {
-    var id = parseInt(req.params.id);
-    var reqDate = req.body.date || req.query.date;
-    let day = moment(reqDate);
-    let date =  moment(reqDate).format('DD-MM-YYYY');
+  app.get('/api/place/:id/book/slots', async (req, res) => {
+    const id = parseInt(req.params.id);
+    const reqDate = req.body.date || req.query.date;
+    const day = moment(reqDate);
+    const date = moment(reqDate).format('DD-MM-YYYY');
     if(!date) {
       res.json({ message: "Please, provide the date" });
     } else {
-      if(day.isValid()){
-          Place.findOne({ _id: id }, function (err, place) {
-            if(!place) {
-              res.json({ message: "No such place" });
-            } else {
-            Interval.findOne({ place: place._id }, async function (err, intervals) {
-              if(!intervals) {
-                res.json({ message: "This place has no booking intervals" });
-              } else { 
-                let dayOff = null;
-                if(place.daysOffs) dayOff = place.daysOffs.find(x=> x.date == date);
-
-                var newArr = await Promise.all(intervals.intervals.map(async function (interval) {
-                  if(interval.day == day.format('dddd')){
-                    if(dayOff && (dayOff.isWholeDay || dayOff.intervals.filter(x=>x.start == interval.start && x.end == interval.end).length > 0)){
-                      interval.free = 0;
-                    }else{
-                      var taken = await Booking.countDocuments({ place: id, date: date, startTime: interval.start, day: interval.day });
-                      interval.free = interval.slots - taken;
-                    }
-                    interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
-                    interval.timestamp = moment(`2019-01-01 ${interval.start.replace('.',':')}`).format("X");
-                    return interval;
-                  }
-                }));
-                res.json(newArr.filter(x=> x != null).sort((a,b) => a.timestamp > b.timestamp));
+      if (day.isValid()) {
+        try {
+          const place = await (() => new Promise(async (resolve, reject) => {
+            Place.findOne({ _id: id }, (err, place) => {
+              if (err) {
+                return reject(err);
               }
+              if (!place) {
+                return reject({ message: "No such place" });
+              }
+              return resolve(place);
             });
+          }))();
+          const singlePlaceSlots = await getSinglePlaceSlots(place, day, date);
+          if (!singlePlaceSlots) {
+            return res.json({ message: "This place has no booking intervals" });
           }
-        });
-      }else{
+          return res.json(singlePlaceSlots);
+        } catch (error) {
+          console.error(error);
+          res.json({ message: "Something went wrong"});
+        }
+      } else {
         res.json({message: "Invalid date format, accepted format is YYYY-DD-MM"});
       }
     }
   });
+
+  app.post('/api/place/book/slots', async (req, res) => {
+    const { date: reqDate } = req.body;
+    if (!reqDate) {
+      return res.json({ message: "Please, provide the date" });
+    }
+    let day, date;
+    try {
+      day = moment(reqDate);
+      date = moment(reqDate).format('DD-MM-YYYY');
+    } catch (error) {
+      return res.json({ message: "Please, provide correct date" });
+    }
+    const placesSlots = await (() => new Promise((resolve, reject) => {
+      Place.find({ isActive : true }).toArray(async (err, places) => {
+        if (err) {
+          return reject(err);
+        }
+        const placesSlots = await Promise.all(places.map(async place => {
+          let freeSpots = await getSinglePlaceSlots(place, day, date);
+          if (freeSpots && freeSpots.length) {
+            freeSpots = freeSpots.reduce((acc, slot) => acc + slot.free, 0);
+          } else {
+            freeSpots = 0;
+          }
+          return {
+            name: place.name,
+            address: place.address,
+            location: place.location,
+            type: place.type,
+            mainImage: place.mainImage,
+            freeSpots,
+          }
+        }));
+        return resolve(placesSlots);
+      });
+    }))();
+
+    return res.json(placesSlots.sort((a, b) => b.freeSpots - a.freeSpots));
+  });
+
+  getSinglePlaceSlots = (place, day, date) => {
+    const { _id } = place;
+    return new Promise((resolve) => {
+      Interval.findOne({ place: _id }, async (err, intervals) => {
+        if (err || !intervals) {
+          return resolve(null);
+        }
+        let dayOff = null;
+        if (place.daysOffs) dayOff = place.daysOffs.find(x => x.date == date);
+
+        const newArr = await Promise.all(intervals.intervals.map(async (interval) => {
+          if (interval.day == day.format('dddd')){
+            if (dayOff && (dayOff.isWholeDay || dayOff.intervals.filter(x=>x.start == interval.start && x.end == interval.end).length > 0)) {
+              interval.free = 0;
+            } else {
+              const taken = await Booking.countDocuments({ place: _id, date: date, startTime: interval.start, day: interval.day });
+              interval.free = interval.slots - taken;
+            }
+            interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
+            interval.timestamp = moment(`2019-01-01 ${interval.start.replace('.',':')}`).format("X");
+            return interval;
+          }
+        }));
+        return resolve(newArr
+          .filter(x => x != null)
+          .sort((a,b) => a.timestamp > b.timestamp));
+      });
+    });
+  }
 
   // Get the specific Booking
   app.get('/api/place/book/:id', function (req, res) {
