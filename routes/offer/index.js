@@ -1,13 +1,17 @@
-var db = require('../config/connection');
-var middleware = require('../config/authMiddleware');
-var moment = require('moment');
-var imageUplader = require('../lib/imageUplader');
-var multiparty = require('multiparty');
-var pushProvider = require('../lib/pushProvider');
-var dfs = require('obj-traverse/lib/obj-traverse');
-var entityHelper = require('../lib/entityHelper');
+const _ = require('lodash');
 
-var User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
+var db = require('../../config/connection');
+var middleware = require('../../config/authMiddleware');
+var moment = require('moment');
+var imageUplader = require('../../lib/imageUplader');
+var multiparty = require('multiparty');
+var pushProvider = require('../../lib/pushProvider');
+var dfs = require('obj-traverse/lib/obj-traverse');
+var entityHelper = require('../../lib/entityHelper');
+const calculateActionPoints = require('../actionPoints/calculator/action');
+const calculateOfferPoints = require('../actionPoints/calculator/offer');
+
+let User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
 db.getInstance(function (p_db) {
   User = p_db.collection('users');
   Place = p_db.collection('places');
@@ -19,8 +23,7 @@ db.getInstance(function (p_db) {
   SamplePost = p_db.collection('sampleposts');
 });
 
-
-module.exports = function(app) {
+module.exports = function(app, actionPointsRepository, offerRepository) {
 
   // app.get('/api/mutate', function (req, res) {
   //   OfferPost.deleteMany({_id: {$in: [12,13,38,39,40,41,42,43,44,45,46,47,48,49,50,51]}});
@@ -71,79 +74,81 @@ module.exports = function(app) {
       res.json(offers);
     });
   });
-  app.get('/api/v2/offer/:id/booking/:bookingId/actions',middleware.isAuthorized, async (req, res) =>{
-    var offerId = parseInt(req.params.id);
-    var bookingId = parseInt(req.params.bookingId);
-    if(offerId && bookingId){
-      let offer = await Offer.findOne({ _id: offerId });
-      let booking = await Booking.findOne({_id: bookingId})
-      if(offer && booking){
-        var offerActions = booking.actions;
-        if(offerActions.filter(offerAction => offerAction.offerId == offerId).length > 0) {
-          res.status(200).json(offerActions.filter(offerAction => offerAction.offerId == offerId)[0].actions);
-        }else{
-          var offerAction = {
-            offerId: offerId,
-            actions: offer.actions
-          };
-          await Booking.findOneAndUpdate({_id: bookingId}, { $push : { actions: offerAction }});
-          res.status(200).json(offerAction.actions);
-        }
-      }else{
-        res.status(404).json({message: "offer or booking not found"});
-      }
-    }else{
-      res.status(400).json({message: "invalid parameters"});
+  app.get('/api/v2/offer/:id/booking/:bookingId/actions', middleware.isAuthorized, async (req, res) => {
+    const user = await req.user;
+    const offerId = parseInt(req.params.id);
+    const bookingId = parseInt(req.params.bookingId);
+
+    if (!(offerId && bookingId)) {
+      return res.status(400).json({message: "invalid parameters"});
     }
+
+    const offer = await Offer.findOne({ _id: offerId });
+    const booking = await Booking.findOne({ _id: bookingId });
+
+    if (!(offer && booking)) {
+      return res.status(404).json({message: "offer or booking not found"});
+    }
+
+    const { actions: offerActions } = booking;
+
+    if (offerActions) {
+      const filteredOfferActions = offerActions.filter(offerAction => offerAction.offerId === offerId); 
+      if (filteredOfferActions.length) {
+        return res.status(200).json(filteredOfferActions[0].actions);
+      }
+    }
+
+    const offerAction = {
+      offerId,
+      actions: await generateActions(offer, user.level),
+    };
+    await Booking.findOneAndUpdate({ _id: bookingId }, { $push : { actions: offerAction }});
+    return res.status(200).json(offerAction.actions);
   });
-  app.get('/api/offer/:id/booking/:bookingId/actions', async (req, res) =>{
-    var offerId = parseInt(req.params.id);
-    var bookingId = parseInt(req.params.bookingId);
-    if(offerId && bookingId){
+
+  app.get('/api/offer/:id/booking/:bookingId/actions', middleware.isAuthorized, async (req, res) => {
+    const offerId = parseInt(req.params.id);
+    const bookingId = parseInt(req.params.bookingId);
+    const user = await req.user;
+
+    if (offerId && bookingId) {
       await Offer.findOne({ _id: offerId })
-        .then(async offer => {
-          if(!offer)  res.status(404).json({message: "offer not found"});
-          await Booking.findOne({_id: bookingId})
-            .then(async booking => {
-              if(!booking) res.status(404).json({message: "booking not found"});
-                var offerActions = booking.offerActions;
+        .then(async (offer) => {
+          if (!offer) res.status(404).json({ message: "offer not found" });
+          await Booking.findOne({ _id: bookingId })
+            .then(async (booking) => {
+              if (!booking) res.status(404).json({ message: "booking not found" });
+                const { offerActions } = booking;
                 //check if user arleady go to choose action for particular offer
-                if(offerActions.filter(offerAction => offerAction.offerId == offerId).length > 0) {
-                  res.status(200).json(offerActions.filter(offerAction => offerAction.offerId == offerId)[0].actions);
-                }else{
+                const filteredOfferActions = offerActions.filter(offerAction => offerAction.offerId == offerId);
+                if (filteredOfferActions.length > 0) {
+                  res.status(200).json(filteredOfferActions[0].actions);
+                } else {
                   //first apperence we need to create available actions
-                  var credits = offer.credits;
-                  var offerCreditsArray = Array.from(Object.keys(credits));
-                  var offerAction = {
+                  const offerAction = {
                     offerId: offerId,
-                    actions: offerCreditsArray.map(x=> {
-                      return {
-                        displayName: getAvailableActionTypes()[x],
-                        type: x,
-                        credits: credits[x],
-                        active: true
-                      }
-                    })
+                    actions: await generateActions(offer, user.level),
                   };
                  await Booking.findOneAndUpdate({_id: bookingId}, { $push : { offerActions: offerAction }})
                     .then(()=>{
                     res.status(200).json(offerAction.actions);
                   })
                   .catch(err =>{
-                    res.status(500).json({message: err});
+                    res.status(500).json({ message: err });
                   });
                 }
             })
             .catch(err => {
-              res.status(404).json({message: err.message});
+              res.status(404).json({ message: err.message });
             });
         })
         .catch(err => {
-          res.status(404).json({message: err.message});
+          res.status(404).json({ message: err.message });
         });
 
     }else{
-      res.status(400).json({message: "invalid parameters"});
+      res.status(400).json({ message: "invalid parameters" });
     }
   });
   function getAvailableActionTypes(){
@@ -158,25 +163,33 @@ module.exports = function(app) {
     return availableTypes;
   }
 
-  app.get('/api/offer/:id/actions', async function(req, res) {
-    //var user = await req.user;
-    var id = parseInt(req.params.id);
+  async function generateActions(offer, userLevel) {
+    const { credits } = offer;
+    const actionPointsProviders = await actionPointsRepository.find();
+    const offerCreditsArray = Array.from(Object.keys(credits));
 
-      Offer.findOne({_id: id}).then(offer => {
-        var credits = offer.credits;
-        var offerCreditsArray = Array.from(Object.keys(credits));
+    return offerCreditsArray.map(x => {
+      const actionPoints = actionPointsProviders.find(ap => ap.provider === x);
+      return {
+        displayName: getAvailableActionTypes()[x],
+        type: x,
+        credits: actionPoints ? calculateActionPoints(actionPoints.points, userLevel, offer.level) : null,
+        active: true,
+      };
+    });
+  }
 
-        res.json(offerCreditsArray.map(x=> {
-              return {
-                displayName: getAvailableActionTypes()[x],
-                type: x,
-                credits: credits[x],
-                active: true
-              }
-            }))
-          })
+  app.get('/api/offer/:id/actions', middleware.isAuthorized, async (req, res) => {
+    const user = await req.user;
+    const id = parseInt(req.params.id);
+
+      Offer.findOne({_id: id}).then(async (offer) => {
+        const actions = await generateActions(offer, user.level);
+        res.json(actions);
+      })
       .catch(err => {
-        res.status(500).json({message: 'err'});
+        console.log(err);
+        res.status(500).json({ message: 'err' });
       });
     });
 
@@ -194,70 +207,71 @@ module.exports = function(app) {
     return isValid;
   }
   // Create the offer. Then wait for the post, admin's check of the post, and then close it
-  app.post('/api/place/:id/offer', async function (req, res) {
-    var id = parseInt(req.params.id);
-    var name = req.body.name
-    var userID = req.body.userID;
-    var composition =  req.body.composition;
-    var price = req.body.price;
-    var credits = req.body.credits;
-    var timeframes = req.body.timeframes;
+  app.post('/api/place/:id/offer', async (req, res) => {
+    const id = parseInt(req.params.id);
+    const {
+      name,
+      userID,
+      composition,
+      price,
+      timeframes,
+      photo,
+      level,
+      credits,
+    } = req.body;
 
-    if (name && id && userID && price && composition && credits && validateTimeframes(timeframes)) {
-
-        var offer = {};
-        offer.name = name;
-        offer.place = id;
-        offer.user = parseInt(userID);
-        offer.price = parseInt(price);
-        offer.creationDate = moment().format('DD-MM-YYYY');
-        offer.composition = composition;
-        offer.credits = credits;
-        Object.keys(offer.credits).map(function (key) {
-          offer.credits[key] = parseInt(offer.credits[key]);
-        });
-        offer.photo = req.body.photo;
-        offer.post = null;
-        offer.closed = false;
-        offer.level = parseInt(req.body.level) || 4;
-        offer.images = [];
-        offer.mainImage = null;
-        offer.timeframes = timeframes;
+    if (name && id && userID && price && composition && level && credits && validateTimeframes(timeframes)) {
+        const offer = {
+          name,
+          place: id,
+          user: parseInt(userID),
+          price: parseInt(price),
+          creationDate: moment().format('DD-MM-YYYY'),
+          composition,
+          photo,
+          post: null,
+          closed: false,
+          level: parseInt(level || 1),
+          images: [],
+          mainImage: null,
+          timeframes,
+          credits: _.pickBy(credits, v => v),
+        };
   
-        User.findOne({ _id: offer.user }, { projection: { credits: 1 }}, function (err, user) {
+        User.findOne({ _id: offer.user }, { projection: { name: 1 }}, (err, user) => {
           if (!user) {
-            res.json({ message: "No such user" });
+            res.status(404).json({ message: 'No such user' });
           } else {
               Counter.findOneAndUpdate(
-                {_id: "offerid"},
-                {$inc: {seq: 1}},
-                {new: true},
-                function (err, seq) {
-                  if (err) console.log(err);
+                { _id: 'offerid' },
+                { $inc: {seq: 1} },
+                { new: true },
+                (err, seq) => {
+                  if (err) console.error(err);
                   offer._id = seq.value.seq;
   
-                 Place.findOneAndUpdate({_id: id}, {$push: {offers: seq.value.seq}}, async function (err, place) {
+                 Place.findOneAndUpdate({ _id: id }, { $push: { offers: seq.value.seq } }, async (err, place) => {
                     if (!place.value) {
-                      res.json({message: "No such place"});
+                      res.status(404).json({ message: 'No such place' });
                     } else {
-                    await User.findOneAndUpdate({_id: offer.user}, {$push: {offers: seq.value.seq}});
-                    await Offer.insertOne(offer);
-                      
-                    await User.find({ accepted : true }).toArray(async (err, users) => {
-                      await OfferPost.distinct('user', { place: place.value._id }).then(async (posts) => {
-                          let devices = [];
-                          for (post of posts){
-                            var user = users.find(x=>x._id == post);
-                            if(user) devices.push(user.devices);
-                          }
-                          if(devices.length > 0){
-                            devices = devices.reduce((a,b) => a.concat(b));
-                            await pushProvider.sendNewOfferNotification(devices, offer, place.value);
-                          }
+                      await User.findOneAndUpdate({ _id: offer.user }, { $push: { offers: seq.value.seq } });
+                      await Offer.insertOne(offer);
+                        
+                      await User.find({ accepted : true }).toArray(async (err, users) => {
+                        await OfferPost.distinct('user', { place: place.value._id }).then(async (posts) => {
+                            let devices = [];
+                            for (post of posts){
+                              const user = users.find(u => u._id == post);
+                              if (user) devices.push(user.devices);
+                            }
+                            if (devices.length){
+                              devices = devices.reduce((a,b) => a.concat(b));
+                              await pushProvider.sendNewOfferNotification(devices, offer, place.value);
+                            }
+                          });
                         });
-                      });
   
-                      res.json({message: "Offer created"});
+                      res.status(201).json({ message: 'Offer created' });
                     }
                   });
                 }
@@ -265,7 +279,7 @@ module.exports = function(app) {
           }
         });
     } else {
-      res.json({message: "Required fields are not fulfilled, required are: name, userID, price, composition, credits and timeframes"});
+      res.json({ message: 'Required fields are not fulfilled, required are: name, userID, price, level, composition, credits and timeframes' });
     }
   });
 
@@ -349,79 +363,80 @@ module.exports = function(app) {
     });
   });
 
-  app.post('/api/place/offer/:id/post', middleware.isAuthorized, function (req, res) {
+  app.post('/api/place/offer/:id/post', middleware.isAuthorized, async (req, res) => {
+    const u = await req.user;
+    let offer;
+    try {
+      offer = await offerRepository.findOne(parseInt(req.params.id));
+    } catch (error) {
+      return res.send(500).json({ message: 'Internal server error' });
+    }
+    if (!offer) {
+      return res.send(404).json({ message: `Couldnt find offer for id ${req.params.id}`});
+    }
 
-    Offer.findOne({_id: parseInt(req.params.id)}, function (err, offer) {
-      if (!offer) {
-        res.json({message: "No such offer"});
-      } else {
-        if (!req.body.postType || !req.body.link || !req.body.feedback) {
-          res.json({message: "Not all fields are provided"});
-        } else {
-          if (!offer.credits[req.body.postType]) {
-            res.json({message: "This Post type is unsupported"});
+    if (!req.body.postType || !req.body.link || !req.body.feedback) {
+      return res.json({ message: 'Not all fields are provided' });
+    }
+
+    if (!offer.credits[req.body.postType]) {
+      return res.json({ message: 'This Post type is unsupported' });
+    }
+
+    const offerPost = {
+      type: req.body.postType,
+      credits: calculateOfferPoints(u.level, offer.level),
+      offer: parseInt(req.params.id),
+      stars: parseInt(req.body.stars) || 0,
+      creationDate: moment().format('DD-MM-YYYY'),
+      link: req.body.link,
+      feedback: req.body.feedback,
+      place: offer.place,
+      accepted: false,
+      user: req.user._id,
+    };
+
+    Counter.findOneAndUpdate(
+      {_id: 'offerpostid'},
+      {$inc: {seq: 1}},
+      {new: true},
+      function (err, seq) {
+        if (err) console.log(err);
+        offerPost._id = seq.value.seq;
+
+        OfferPost.insertOne(offerPost);
+
+        Offer.findOneAndUpdate({_id: offerPost.offer}, {$set: {post: seq.value.seq}}, function (err, offer) {
+          if (!offer.value) {
+            res.json({message: 'No such offer'});
           } else {
-
-            var offerPost = {};
-            offerPost.type = req.body.postType;
-            offerPost.credits = offer.credits[offerPost.type];
-            offerPost.offer = parseInt(req.params.id);
-            offerPost.stars = parseInt(req.body.stars) || 0;
-            offerPost.creationDate = moment().format('DD-MM-YYYY');
-            offerPost.link = req.body.link;
-            offerPost.feedback = req.body.feedback;
-            offerPost.place = offer.place;
-            offerPost.accepted = false;
-            offerPost.user = req.user._id;
-
-            Counter.findOneAndUpdate(
-              {_id: "offerpostid"},
-              {$inc: {seq: 1}},
-              {new: true},
-              function (err, seq) {
-                if (err) console.log(err);
-                offerPost._id = seq.value.seq;
-
-                OfferPost.insertOne(offerPost);
-
-                Offer.findOneAndUpdate({_id: offerPost.offer}, {$set: {post: seq.value.seq}}, function (err, offer) {
-                  if (!offer.value) {
-                    res.json({message: "No such offer"});
-                  } else {
-
-                    Place.findOneAndUpdate({_id: offer.value.place}, {$push: {posts: seq.value.seq}});
-                    User.findOneAndUpdate({_id: offerPost.user}, {$push: {offerPosts: seq.value.seq}}, function (err, user) {
-                      if (!user.value) {
-                        res.json({message: "Mistake in the offer"});
-                      } else {
-                        res.json({message: "Offer post created"});
-                      }
-                    });
-                  }
-                });
+            Place.findOneAndUpdate({_id: offer.value.place}, {$push: {posts: seq.value.seq}});
+            User.findOneAndUpdate({_id: offerPost.user}, {$push: {offerPosts: seq.value.seq}}, function (err, user) {
+              if (!user.value) {
+                res.json({message: 'Mistake in the offer'});
+              } else {
+                res.json({message: 'Offer post created'});
               }
-            );
+            });
           }
-
-        }
-      }
-    });
+        });
+      },
+    );
   });
 
 
   getBookingAction = async (actionId, actions) => {
-    let foundedBookingAction
+    let foundBookingAction
     for(let action of actions){
-      let founded =  dfs.findFirst(action, 'subActions', {id: actionId});
-      if(founded){
-        foundedBookingAction = founded;
+      let found =  dfs.findFirst(action, 'subActions', {id: actionId});
+      if(found){
+        foundBookingAction = found;
       } 
     }
-    return foundedBookingAction;
+    return foundBookingAction;
   }
 
-  app.post('/api/v2/offer/:id/booking/:bookingId/post',middleware.isAuthorized , async function (req, res) {
-  
+  app.post('/api/v2/offer/:id/booking/:bookingId/post',middleware.isAuthorized , async (req, res) => {
     let bookingId = parseInt(req.params.bookingId);
     let offerId = parseInt(req.params.id);
     let user = await req.user;
@@ -431,21 +446,22 @@ module.exports = function(app) {
       let booking = await Booking.findOne({_id: bookingId});
       if(offer && booking){
         var form = new multiparty.Form();
-        await form.parse(req, async function (err, fields, files) {
+        await form.parse(req, async (err, fields, files) => {
           let actionId = fields.actionId[0];
           let dbOfferPost = await OfferPost.findOne({offer: offerId, booking: bookingId, actionId: actionId});
           let bookingAction = booking.actions.filter(x=>x.offerId == offer._id)[0];
-          let foundedBookingAction;
+          let foundBookingAction;
           if(bookingAction){
-            foundedBookingAction = await getBookingAction(actionId, bookingAction.actions);
-            if(foundedBookingAction && ( !dbOfferPost || foundedBookingAction.maxAttempts - foundedBookingAction.attempts > 0)){
-              foundedBookingAction.attempts = foundedBookingAction.attempts + 1;
-              if(!foundedBookingAction.isPictureRequired || (foundedBookingAction.isPictureRequired && files && files.images && files.images.length > 0)){
+            foundBookingAction = await getBookingAction(actionId, bookingAction.actions);
+            if(foundBookingAction && ( !dbOfferPost || foundBookingAction.maxAttempts - foundBookingAction.attempts > 0)){
+              foundBookingAction.attempts = foundBookingAction.attempts + 1;
+              if(!foundBookingAction.isPictureRequired || (foundBookingAction.isPictureRequired && files && files.images && files.images.length > 0)){
                 let id = await entityHelper.getNewId('offerpostid')
+                // const bookingAct = foundBookingAction.parentId ? (await getBookingAction(foundBookingAction.parentId, bookingAction.actions)) : foundBookingAction;
                 let postOffer = {
                   _id: id,
-                  type: foundedBookingAction.type,
-                  credits: foundedBookingAction.parentId ? (await getBookingAction(foundedBookingAction.parentId, bookingAction.actions)).credits :   foundedBookingAction.credits,
+                  type: foundBookingAction.type,
+                  credits: calculateOfferPoints(user.level, offer.level),
                   offer: offer._id,
                   stars: fields.star ? fields.star[0] : 0,
                   creationDate: moment().format('DD-MM-YYYY'),
@@ -456,9 +472,9 @@ module.exports = function(app) {
                   user: user._id,
                   booking: booking._id,
                   actionId: actionId,
-                  image: files.images.length && foundedBookingAction.isPictureRequired > 0 ?  await imageUplader.uploadImage(files.images[0].path, 'postOffer', offer._id) : null
+                  image: files.images.length && foundBookingAction.isPictureRequired > 0 ?  await imageUplader.uploadImage(files.images[0].path, 'postOffer', offer._id) : null
                 }
-                foundedBookingAction.isActive = foundedBookingAction.maxAttempts - foundedBookingAction.attempts > 0;
+                foundBookingAction.isActive = foundBookingAction.maxAttempts - foundBookingAction.attempts > 0;
                 await OfferPost.insertOne(postOffer);
                 await Place.findOneAndUpdate({_id: offer.place}, { $push: { posts: id }});
                 await Booking.findOneAndUpdate(
@@ -489,37 +505,36 @@ module.exports = function(app) {
     }
   });
 
-app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, function (req, res) {
-  
-    var bookingId = parseInt(req.params.bookingId);
+app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, async (req, res) => {
+  const u = await req.user;
+  const bookingId = parseInt(req.params.bookingId);
 
-    //todo should be removed after ios update
-    if(req.body.postType && req.body.postType == 'google'){
-      req.body.postType = req.body.postType.replace('google', 'gPost');
-    }
-    OfferPost.findOne({ offer: parseInt(req.params.id), booking: bookingId, type: req.body.postType }, function(err, dbOfferPost){
-      if(dbOfferPost){
-        res.status(400).json({message: "You arleady done this action"});
-      }else{
+  //todo should be removed after ios update
+  if(req.body.postType && req.body.postType == 'google'){
+    req.body.postType = req.body.postType.replace('google', 'gPost');
+  }
+  OfferPost.findOne({ offer: parseInt(req.params.id), booking: bookingId, type: req.body.postType }, function(err, dbOfferPost){
+    if (dbOfferPost) {
+      res.status(400).json({message: "You arleady done this action"});
+    } else {
 
     Offer.findOne({_id: parseInt(req.params.id)}, function (err, offer) {
       if (!offer) {
         res.json({message: "No such offer"});
       } else {
-        Booking.findOne({_id: bookingId}, function(err, booking){
+        Booking.findOne({_id: bookingId}, async (err, booking) => {
           if(!booking){
             res.status(404).json({message: "No such booking"});
-          }else{
+          } else {
             if (!req.body.postType || !req.body.link || (req.body.postType != 'instaStories' && req.body.postType != 'instaPost'  && !req.body.feedback)) {
               res.json({message: "Not all fields are provided"});
             } else {
               if (!offer.credits[req.body.postType]) {
                 res.json({message: "This Post type is unsupported"});
               } else {
-    
-                var offerPost = {};
+                const offerPost = {};
                 offerPost.type = req.body.postType;
-                offerPost.credits = offer.credits[offerPost.type];
+                offerPost.credits = calculateOfferPoints(u.level, offer.level);
                 offerPost.offer = parseInt(req.params.id);
                 offerPost.stars = parseInt(req.body.stars) || 0;
                 offerPost.creationDate = moment().format('DD-MM-YYYY');
@@ -544,8 +559,6 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, func
                       if (!offer.value) {
                         res.json({message: "No such offer"});
                       } else {
-                        
-
                         Booking.updateOne(
                           { 'offerActions.offerId': offerPost.offer, _id : bookingId  },
                           { $set: { 'offerActions.$.actions.$[t].active': false }},
