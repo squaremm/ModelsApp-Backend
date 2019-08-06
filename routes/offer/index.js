@@ -9,7 +9,6 @@ var pushProvider = require('../../lib/pushProvider');
 var dfs = require('obj-traverse/lib/obj-traverse');
 var entityHelper = require('../../lib/entityHelper');
 const calculateActionPoints = require('../actionPoints/calculator/action');
-const calculateOfferPoints = require('../actionPoints/calculator/offer');
 
 let User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
 db.getInstance(function (p_db) {
@@ -376,16 +375,23 @@ module.exports = function(app, actionPointsRepository, offerRepository) {
     }
 
     if (!req.body.postType || !req.body.link || !req.body.feedback) {
-      return res.json({ message: 'Not all fields are provided' });
+      return res.status(400).json({ message: 'Not all fields are provided' });
     }
 
-    if (!offer.credits[req.body.postType]) {
-      return res.json({ message: 'This Post type is unsupported' });
+    let actionPoints;
+    try {
+      actionPoints = await actionPointsRepository.findOne(req.body.postType);
+    } catch (error) {
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+
+    if (!offer.credits[req.body.postType] || !actionPoints) {
+      return res.status(400).json({ message: 'This Post type is unsupported' });
     }
 
     const offerPost = {
       type: req.body.postType,
-      credits: calculateOfferPoints(u.level, offer.level),
+      credits: calculateActionPoints(actionPoints.points, u.level, offer.level),
       offer: parseInt(req.params.id),
       stars: parseInt(req.body.stars) || 0,
       creationDate: moment().format('DD-MM-YYYY'),
@@ -436,14 +442,14 @@ module.exports = function(app, actionPointsRepository, offerRepository) {
     return foundBookingAction;
   }
 
-  app.post('/api/v2/offer/:id/booking/:bookingId/post',middleware.isAuthorized , async (req, res) => {
+  app.post('/api/v2/offer/:id/booking/:bookingId/post', middleware.isAuthorized, async (req, res) => {
     let bookingId = parseInt(req.params.bookingId);
     let offerId = parseInt(req.params.id);
     let user = await req.user;
 
     if(bookingId & offerId){
-      let offer = await Offer.findOne({_id: offerId});
-      let booking = await Booking.findOne({_id: bookingId});
+      let offer = await Offer.findOne({ _id: offerId });
+      let booking = await Booking.findOne({ _id: bookingId });
       if(offer && booking){
         var form = new multiparty.Form();
         await form.parse(req, async (err, fields, files) => {
@@ -457,36 +463,46 @@ module.exports = function(app, actionPointsRepository, offerRepository) {
               foundBookingAction.attempts = foundBookingAction.attempts + 1;
               if(!foundBookingAction.isPictureRequired || (foundBookingAction.isPictureRequired && files && files.images && files.images.length > 0)){
                 let id = await entityHelper.getNewId('offerpostid')
-                // const bookingAct = foundBookingAction.parentId ? (await getBookingAction(foundBookingAction.parentId, bookingAction.actions)) : foundBookingAction;
-                let postOffer = {
-                  _id: id,
-                  type: foundBookingAction.type,
-                  credits: calculateOfferPoints(user.level, offer.level),
-                  offer: offer._id,
-                  stars: fields.star ? fields.star[0] : 0,
-                  creationDate: moment().format('DD-MM-YYYY'),
-                  link: fields.link ? fields.link[0] : null,
-                  feedback: fields.feedback ? fields.feedback[0] : null,
-                  place: offer.place,
-                  accepted: false,
-                  user: user._id,
-                  booking: booking._id,
-                  actionId: actionId,
-                  image: files.images.length && foundBookingAction.isPictureRequired > 0 ?  await imageUplader.uploadImage(files.images[0].path, 'postOffer', offer._id) : null
+                const bookingAct = foundBookingAction.parentId ? (await getBookingAction(foundBookingAction.parentId, bookingAction.actions)) : foundBookingAction;
+                let actionPoints;
+                try {
+                  actionPoints = await actionPointsRepository.findOne(bookingAct.type);
+                } catch (err) {
+                  res.status(500).json({ message: 'Internal server error' });
                 }
-                foundBookingAction.isActive = foundBookingAction.maxAttempts - foundBookingAction.attempts > 0;
-                await OfferPost.insertOne(postOffer);
-                await Place.findOneAndUpdate({_id: offer.place}, { $push: { posts: id }});
-                await Booking.findOneAndUpdate(
-                  { _id : booking._id },
-                  { $pull : { actions: { offerId: offer._id  } } });
-                await Booking.findOneAndUpdate(
-                  { _id : booking._id },
-                  { $push: { actions : bookingAction }});
-
-                await User.findOneAndUpdate({_id: postOffer.user}, { $push: {offerPosts: id} })
-                await User.findOneAndUpdate({_id: postOffer.user}, { $push: {offerPostsV2: { id: id, createdAt: moment().format('DD-MM-YYYY HH:mm:ss')}}});
-                res.status(200).json({message: "Offer post created"})
+                if (!actionPoints) {
+                  res.status(400).json({ message: 'Unsupported action type' });
+                } else {
+                  const postOffer = {
+                    _id: id,
+                    type: foundBookingAction.type,
+                    credits: calculateActionPoints(actionPoints.points, user.level, offer.level),
+                    offer: offer._id,
+                    stars: fields.star ? fields.star[0] : 0,
+                    creationDate: moment().format('DD-MM-YYYY'),
+                    link: fields.link ? fields.link[0] : null,
+                    feedback: fields.feedback ? fields.feedback[0] : null,
+                    place: offer.place,
+                    accepted: false,
+                    user: user._id,
+                    booking: booking._id,
+                    actionId: actionId,
+                    image: files.images.length && foundBookingAction.isPictureRequired > 0 ?  await imageUplader.uploadImage(files.images[0].path, 'postOffer', offer._id) : null
+                  };
+                  foundBookingAction.isActive = foundBookingAction.maxAttempts - foundBookingAction.attempts > 0;
+                  await OfferPost.insertOne(postOffer);
+                  await Place.findOneAndUpdate({_id: offer.place}, { $push: { posts: id }});
+                  await Booking.findOneAndUpdate(
+                    { _id : booking._id },
+                    { $pull : { actions: { offerId: offer._id  } } });
+                  await Booking.findOneAndUpdate(
+                    { _id : booking._id },
+                    { $push: { actions : bookingAction }});
+  
+                  await User.findOneAndUpdate({_id: postOffer.user}, { $push: {offerPosts: id} })
+                  await User.findOneAndUpdate({_id: postOffer.user}, { $push: {offerPostsV2: { id: id, createdAt: moment().format('DD-MM-YYYY HH:mm:ss')}}});
+                  res.status(200).json({message: "Offer post created"})
+                }
               }else{
                 res.status(400).json({message: "Not all fields are provided"});
               }
@@ -532,51 +548,61 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, asyn
               if (!offer.credits[req.body.postType]) {
                 res.json({message: "This Post type is unsupported"});
               } else {
-                const offerPost = {};
-                offerPost.type = req.body.postType;
-                offerPost.credits = calculateOfferPoints(u.level, offer.level);
-                offerPost.offer = parseInt(req.params.id);
-                offerPost.stars = parseInt(req.body.stars) || 0;
-                offerPost.creationDate = moment().format('DD-MM-YYYY');
-                offerPost.link = req.body.link;
-                offerPost.feedback = req.body.feedback;
-                offerPost.place = offer.place;
-                offerPost.accepted = false;
-                offerPost.user = req.user._id;
-                offerPost.booking = booking._id;
-
-                Counter.findOneAndUpdate(
-                  {_id: "offerpostid"},
-                  {$inc: {seq: 1}},
-                  {new: true},
-                  function (err, seq) {
-                    if (err) console.log(err);
-                    offerPost._id = seq.value.seq;
-    
-                    OfferPost.insertOne(offerPost);
-    
-                    Offer.findOneAndUpdate({_id: offerPost.offer}, {$set: {post: seq.value.seq}}, function (err, offer) {
-                      if (!offer.value) {
-                        res.json({message: "No such offer"});
-                      } else {
-                        Booking.updateOne(
-                          { 'offerActions.offerId': offerPost.offer, _id : bookingId  },
-                          { $set: { 'offerActions.$.actions.$[t].active': false }},
-                          { arrayFilters: [ {"t.type": offerPost.type  } ] } , function(err, booking){
-
-                            Place.findOneAndUpdate({_id: offer.value.place}, {$push: {posts: seq.value.seq}});
-                            User.findOneAndUpdate({_id: offerPost.user}, {$push: {offerPosts: seq.value.seq}}, function (err, user) {
-                              if (!user.value) {
-                                res.json({message: "Mistake in the offer"});
-                              } else {
-                                res.json({message: "Offer post created"});
-                              }
+                try {
+                  actionPoints = await actionPointsRepository.findOne(req.body.postType);
+                } catch (err) {
+                  res.status(500).json({ message: 'Internal server error' });
+                }
+                if (!actionPoints) {
+                  res.status(400).json({ message: 'Unsupported action type' });
+                } else {
+                  const offerPost = {
+                    type: req.body.postType,
+                    credits: calculateActionPoints(actionPoints.points, u.level, offer.level),
+                    offer: parseInt(req.params.id),
+                    stars: parseInt(req.body.stars) || 0,
+                    creationDate: moment().format('DD-MM-YYYY'),
+                    link: req.body.link,
+                    feedback: req.body.feedback,
+                    place: offer.place,
+                    accepted: false,
+                    user: req.user._id,
+                    booking: booking._id,
+                  };
+  
+                  Counter.findOneAndUpdate(
+                    {_id: "offerpostid"},
+                    {$inc: {seq: 1}},
+                    {new: true},
+                    function (err, seq) {
+                      if (err) console.log(err);
+                      offerPost._id = seq.value.seq;
+      
+                      OfferPost.insertOne(offerPost);
+      
+                      Offer.findOneAndUpdate({_id: offerPost.offer}, {$set: {post: seq.value.seq}}, function (err, offer) {
+                        if (!offer.value) {
+                          res.json({message: "No such offer"});
+                        } else {
+                          Booking.updateOne(
+                            { 'offerActions.offerId': offerPost.offer, _id : bookingId  },
+                            { $set: { 'offerActions.$.actions.$[t].active': false }},
+                            { arrayFilters: [ {"t.type": offerPost.type  } ] } , function(err, booking){
+  
+                              Place.findOneAndUpdate({_id: offer.value.place}, {$push: {posts: seq.value.seq}});
+                              User.findOneAndUpdate({_id: offerPost.user}, {$push: {offerPosts: seq.value.seq}}, function (err, user) {
+                                if (!user.value) {
+                                  res.json({message: "Mistake in the offer"});
+                                } else {
+                                  res.json({message: "Offer post created"});
+                                }
+                              });
                             });
-                          });
-                      }
-                    });
-                  }
-                );
+                        }
+                      });
+                    }
+                  );
+                }
               }
             }
           }
