@@ -41,7 +41,8 @@ exports.createUser = async (req, res, next) => {
                 images: [],
                 mainImage: null,
                 isPaymentRequired: false,
-                registerStep: 0
+                registerStep: 0,
+                level: 1,
             };
 
             newUser.loginTypes.push('email');

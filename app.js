@@ -23,6 +23,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(passport.initialize());
 
+const newValidator = require('./lib/validator');
+
+const actionPointsRepository = require('./routes/actionPoints/repository');
+const offerRepository = require('./routes/offer/repository');
+
 require('./config/authJWT')(passport);
 require('./config/authLocal')(passport);
 require('./config/authInstagram')(passport);
@@ -33,7 +38,7 @@ require('./routes/auth')(app);
 require('./routes/user')(app);
 require('./routes/admins')(app);
 require('./routes/client')(app);
-require('./routes/offer')(app);
+require('./routes/offer')(app, actionPointsRepository, offerRepository);
 require('./routes/booking')(app);
 require('./routes/intevals')(app);
 require('./routes/place')(app);
@@ -45,6 +50,7 @@ require('./routes/campains/campaigns')(app);
 require('./routes/campains/userCampaigns')(app);
 require('./routes/campains/campaignsIntervals')(app);
 require('./routes/config')(app);
+require('./routes/actionPoints')(app, actionPointsRepository, newValidator());
 
 var functions = require('./config/intervalFunctions');
 

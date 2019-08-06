@@ -1,15 +1,15 @@
-var db = require('../config/connection');
-var middleware = require('../config/authMiddleware');
+var db = require('../../config/connection');
+var middleware = require('../../config/authMiddleware');
 var apn = require('apn');
 var moment = require('moment');
 var crypto = require('crypto');
-var sendGrid = require('../lib/sendGrid');
+var sendGrid = require('../../lib/sendGrid');
 var bcrypt = require('bcrypt-nodejs');
-var imageUplader = require('../lib/imageUplader');
+var imageUplader = require('../../lib/imageUplader');
 var multiparty = require('multiparty');
-var pushProvider = require('../lib/pushProvider');
+var pushProvider = require('../../lib/pushProvider');
 var path = require('path');
-var entityHelper = require('../lib/entityHelper');
+var entityHelper = require('../../lib/entityHelper');
 
 var User, Booking, Offer, Place, OfferPost, UserPaymentToken;
 db.getInstance(function (p_db) {
@@ -510,6 +510,7 @@ function editUser(id, newUser, res){
       if(newUser.currentAgency !== user.currentAgency && newUser.currentAgency) user.currentAgency = newUser.currentAgency;
       if(newUser.city !== user.city && newUser.city) user.city = newUser.city;
       if(newUser.instagramName !== user.instagramName && newUser.instagramName) user.instagramName = newUser.instagramName;
+      if(newUser.level !== user.level && user.level) user.level = newUser.level;
       // Add a deviceID to the devices array of the User's document
       if(newUser.deviceID) {
         if(user.devices.indexOf(newUser.deviceID) === -1){

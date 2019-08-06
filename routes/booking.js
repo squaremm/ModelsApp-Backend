@@ -1,11 +1,12 @@
-var db = require('../config/connection');
-var moment = require('moment');
-var sendGrid = require('../lib/sendGrid');
-var entityHelper = require('../lib/entityHelper');
-var crypto = require('crypto');
+const db = require('../config/connection');
+const moment = require('moment');
+const sendGrid = require('../lib/sendGrid');
+const entityHelper = require('../lib/entityHelper');
 
+const crypto = require('crypto');
+const calculateOfferPoints = require('./actionPoints/calculator/offer');
 
-var User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
+let User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
 db.getInstance(function (p_db) {
   User = p_db.collection('users');
   Place = p_db.collection('places');
@@ -125,14 +126,26 @@ module.exports = function(app) {
     });
   }
 
+  function generateOfferPrices(offers, userLevel) {
+    return offers.map(offer => ({ ...offer, price: calculateOfferPoints(userLevel, offer.level) }));
+  }
+
   // Get the specific Booking
-  app.get('/api/place/book/:id', function (req, res) {
+  app.get('/api/place/book/:id', (req, res) => {
     var id = parseInt(req.params.id);
     Booking.findOne({_id: id}, async function (err, book) {
       if (!book) {
         res.json({message: "No such booking"});
       } else {
-
+        let user;
+        try {
+          user = await User.findOne({ _id: book.user });
+        } catch (error) {
+          return res.status(500).json({ message: 'Internal server error' });
+        }
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+        }
         // Check if the booking is older than 24 hours
         var date = moment(book.date + ' ' + book.endTime, 'DD-MM-YYYY HH.mm');
         var tommorow = moment(date.add('1', 'days').format('DD-MM-YYYY'), 'DD-MM-YYYY');
@@ -149,6 +162,7 @@ module.exports = function(app) {
         book.place.photos = book.place.photos[0];
         if (book.offers) {
           book.offers = await Offer.find({_id: {$in: book.offers}}).toArray();
+          book.offers = generateOfferPrices(book.offers, user.level);
           res.json({place: book});
         } else {
           res.json({place: book});
@@ -281,6 +295,7 @@ module.exports = function(app) {
         let user = await User.findOne({_id : userID });
         let interval = await Interval.findOne({ place : id });
         let offers = await Offer.find({place: id}).toArray();
+        offers = generateOfferPrices(offers, user.level);
 
         let intervals = interval.intervals.map((interval) => {
           interval._id = crypto.createHash('sha1').update(`${interval.start}${interval.end}${interval.day}`).digest("hex");
@@ -422,35 +437,51 @@ module.exports = function(app) {
 
   // Create the Booking and link it with User and the Place
   // Using Intervals for it
-  app.post('/api/place/:id/book', async function (req, res) {
+  app.post('/api/place/:id/book', async (req, res) => {
     var id = parseInt(req.params.id);
+    const { userID } = req.body;
 
-    if (req.body.userID && req.body.interval !== undefined && req.body.date && id) {
+    if (!userID) {
+      return res.json({ message: 'Required fields are not fulfilled' });
+    }
 
+    let user;
+    try {
+      user = await User.findOne({ _id: userID });
+    } catch (error) {
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (req.body.interval !== undefined && req.body.date && id) {
       var intervalNum = parseInt(req.body.interval);
-      var newBooking = {};
-      newBooking.user = parseInt(req.body.userID);
-      newBooking.place = id;
-      newBooking.date = req.body.date; //moment(req.body.date).format('DD-MM-YYYY');
-      newBooking.creationDate = moment().format('DD-MM-YYYY');
-      newBooking.closed = false;
-      newBooking.claimed = false;
-      newBooking.offers = [];
-      newBooking.offerActions = [];
+      const newBooking = {
+        user: parseInt(req.body.userID),
+        place: id,
+        date: req.body.date, //moment(req.body.date).format('DD-MM-YYYY')
+        creationDate: moment().format('DD-MM-YYYY'),
+        closed: false,
+        claimed: false,
+        offers: [],
+        offerActions: [],
+      };
       //newBooking.day = moment(req.body.date).format('dddd');
 
-      var minOffer;
-      var minOfferPrice = 0;
+      let minOfferPrice = 0;
+      let offers;
       if (req.body.offers) {
         for (var num of req.body.offers) {
           newBooking.offers.push(parseInt(num));
         }
-        minOffer = await Offer.find({_id: {$in: newBooking.offers}}, {projection: {price: 1}}).sort({price: 1}).limit(1).toArray();
-        minOfferPrice = minOffer[0]['price'];
+        offers = await Offer.find({_id: {$in: newBooking.offers}}, {projection: {level: 1}}).toArray();
       } else {
-        minOffer = await Offer.find({place: newBooking.place}, {projection: {price: 1}}).sort({price: 1}).limit(1).toArray();
-        minOfferPrice = minOffer[0]['price'];
+        offers = await Offer.find({place: newBooking.place}, {projection: {level: 1}}).toArray();
       }
+      offers = generateOfferPrices(offers, user.level);
+      const offerPrices = offers.map(o => o.price);
+      minOfferPrice = offerPrices.sort((a, b) => a - b)[0];
 
       Interval.findOne({place: id}, async function (err, interval) {
         if (!interval || !interval.intervals[intervalNum]) {
@@ -540,7 +571,17 @@ module.exports = function(app) {
         res.json({message: "No such booking"});
       } else {
 
-        var offers = await Offer.find({_id: {$in: book.offers}}, {projection: {price: 1}}).toArray();
+        var offers = await Offer.find({_id: {$in: book.offers}}, {projection: {level: 1}}).toArray();
+        let user;
+        try {
+          user = await User.findOne({ _id: book.user });
+        } catch (error) {
+          return res.status(500).json({ message: 'Internal server error' });
+        }
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+        offers = generateOfferPrices(offers, user.level);
         var sum = 0;
         offers.forEach(function (offer) {
           sum += offer.price;

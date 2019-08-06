@@ -160,10 +160,10 @@ module.exports = function (passport) {
               phone: body.phone,
               mother_agency: body.mother_agency,
               current_agency: body.current_agency,
-              invitation_code: body.invitation_code
+              invitation_code: body.invitation_code,
+              level: 1,
             }
             User.insertOne(user)
-            console.log('user is ',user);
             return done(null, user);
           }
           else {

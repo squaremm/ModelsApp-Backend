@@ -61,6 +61,7 @@ module.exports = function(passport) {
             newUser.isAcceptationPending = true;
             newUser.loginTypes = [];
             newUser.loginTypes.push('instagram');
+            newUser.level = 1;
             
             // Update counters. In mongo we need an another collection to store the autoincrement
             Counter.findOneAndUpdate(
