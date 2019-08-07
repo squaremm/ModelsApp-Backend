@@ -22,7 +22,7 @@ db.getInstance(function (p_db) {
   SamplePost = p_db.collection('sampleposts');
 });
 
-module.exports = function(app, actionPointsRepository, offerRepository) {
+module.exports = function(app, actionPointsRepository, userRepository, offerRepository) {
 
   // app.get('/api/mutate', function (req, res) {
   //   OfferPost.deleteMany({_id: {$in: [12,13,38,39,40,41,42,43,44,45,46,47,48,49,50,51]}});
@@ -364,6 +364,7 @@ module.exports = function(app, actionPointsRepository, offerRepository) {
 
   app.post('/api/place/offer/:id/post', middleware.isAuthorized, async (req, res) => {
     const u = await req.user;
+    const { postType } = req.body;
     let offer;
     try {
       offer = await offerRepository.findOne(parseInt(req.params.id));
@@ -374,23 +375,23 @@ module.exports = function(app, actionPointsRepository, offerRepository) {
       return res.send(404).json({ message: `Couldnt find offer for id ${req.params.id}`});
     }
 
-    if (!req.body.postType || !req.body.link || !req.body.feedback) {
+    if (!postType || !req.body.link || !req.body.feedback) {
       return res.status(400).json({ message: 'Not all fields are provided' });
     }
 
     let actionPoints;
     try {
-      actionPoints = await actionPointsRepository.findOne(req.body.postType);
+      actionPoints = await actionPointsRepository.findOne(postType);
     } catch (error) {
       return res.status(500).json({ message: 'Internal server error' });
     }
 
-    if (!offer.credits[req.body.postType] || !actionPoints) {
+    if (!offer.credits[postType] || !actionPoints) {
       return res.status(400).json({ message: 'This Post type is unsupported' });
     }
 
     const offerPost = {
-      type: req.body.postType,
+      type: postType,
       credits: calculateActionPoints(actionPoints.points, u.level, offer.level),
       offer: parseInt(req.params.id),
       stars: parseInt(req.body.stars) || 0,
@@ -412,18 +413,23 @@ module.exports = function(app, actionPointsRepository, offerRepository) {
 
         OfferPost.insertOne(offerPost);
 
-        Offer.findOneAndUpdate({_id: offerPost.offer}, {$set: {post: seq.value.seq}}, function (err, offer) {
-          if (!offer.value) {
-            res.json({message: 'No such offer'});
-          } else {
-            Place.findOneAndUpdate({_id: offer.value.place}, {$push: {posts: seq.value.seq}});
-            User.findOneAndUpdate({_id: offerPost.user}, {$push: {offerPosts: seq.value.seq}}, function (err, user) {
-              if (!user.value) {
-                res.json({message: 'Mistake in the offer'});
-              } else {
-                res.json({message: 'Offer post created'});
-              }
-            });
+        Offer.findOneAndUpdate({ _id: offerPost.offer }, { $set: {post: seq.value.seq } }, async (err, offer) => {
+          if (err) {
+            return res.status(500).json({ message: 'Internal server error' });
+          }
+          try {
+            if (!offer.value) {
+              return res.status(404).json({ message: 'No such offer' });
+            }
+            await Place.findOneAndUpdate({ _id: offer.value.place }, { $push: { posts: seq.value.seq } });
+            const updatedUser = await userRepository
+              .findOneAndUpdateAction(offerPost.user, postType, { $push: { offerPosts: seq.value.seq } });
+            if (!updatedUser) {
+              return res.status(404).json({ message: 'User not found' });
+            }
+            return res.status(201).json({ message: 'Offer post created' });
+          } catch (error) {
+            return res.status(500).json({ message: 'Internal server error' });
           }
         });
       },
@@ -452,27 +458,27 @@ module.exports = function(app, actionPointsRepository, offerRepository) {
       let booking = await Booking.findOne({ _id: bookingId });
       if(offer && booking){
         var form = new multiparty.Form();
-        await form.parse(req, async (err, fields, files) => {
-          let actionId = fields.actionId[0];
-          let dbOfferPost = await OfferPost.findOne({offer: offerId, booking: bookingId, actionId: actionId});
-          let bookingAction = booking.actions.filter(x=>x.offerId == offer._id)[0];
-          let foundBookingAction;
+        await form.parse(req, async function (err, fields, files) {
+          let actionId, dbOfferPost, bookingAction, foundBookingAction;
+          try {
+            actionId = fields.actionId[0];
+            dbOfferPost = await OfferPost.findOne({offer: offerId, booking: bookingId, actionId: actionId});
+            bookingAction = booking.actions.filter(x=>x.offerId == offer._id)[0];
+          } catch (err) {
+            return res.status(500).json({ message: 'Internal server error' });
+          }
           if(bookingAction){
             foundBookingAction = await getBookingAction(actionId, bookingAction.actions);
             if(foundBookingAction && ( !dbOfferPost || foundBookingAction.maxAttempts - foundBookingAction.attempts > 0)){
               foundBookingAction.attempts = foundBookingAction.attempts + 1;
               if(!foundBookingAction.isPictureRequired || (foundBookingAction.isPictureRequired && files && files.images && files.images.length > 0)){
-                let id = await entityHelper.getNewId('offerpostid')
-                const bookingAct = foundBookingAction.parentId ? (await getBookingAction(foundBookingAction.parentId, bookingAction.actions)) : foundBookingAction;
-                let actionPoints;
                 try {
-                  actionPoints = await actionPointsRepository.findOne(bookingAct.type);
-                } catch (err) {
-                  res.status(500).json({ message: 'Internal server error' });
-                }
-                if (!actionPoints) {
-                  res.status(400).json({ message: 'Unsupported action type' });
-                } else {
+                  let id = await entityHelper.getNewId('offerpostid')
+                  const bookingAct = foundBookingAction.parentId ? (await getBookingAction(foundBookingAction.parentId, bookingAction.actions)) : foundBookingAction;
+                  const actionPoints = await actionPointsRepository.findOne(bookingAct.type);
+                  if (!actionPoints) {
+                    return res.status(400).json({ message: 'Unsupported action type' });
+                  }
                   const postOffer = {
                     _id: id,
                     type: foundBookingAction.type,
@@ -499,9 +505,19 @@ module.exports = function(app, actionPointsRepository, offerRepository) {
                     { _id : booking._id },
                     { $push: { actions : bookingAction }});
   
-                  await User.findOneAndUpdate({_id: postOffer.user}, { $push: {offerPosts: id} })
-                  await User.findOneAndUpdate({_id: postOffer.user}, { $push: {offerPostsV2: { id: id, createdAt: moment().format('DD-MM-YYYY HH:mm:ss')}}});
-                  res.status(200).json({message: "Offer post created"})
+                  await userRepository
+                    .findOneAndUpdateAction(
+                      postOffer.user,
+                      bookingAct.type,
+                      {
+                        $push: {
+                          offerPosts: id,
+                          offerPostsV2: { id: id, createdAt: moment().format('DD-MM-YYYY HH:mm:ss') },
+                        },
+                      });
+                  return res.status(200).json({ message: 'Offer post created' });
+                } catch (error) {
+                  return res.status(500).json({ message: 'Internal server error' });
                 }
               }else{
                 res.status(400).json({message: "Not all fields are provided"});
@@ -582,21 +598,27 @@ app.post('/api/offer/:id/booking/:bookingId/post', middleware.isAuthorized, asyn
       
                       Offer.findOneAndUpdate({_id: offerPost.offer}, {$set: {post: seq.value.seq}}, function (err, offer) {
                         if (!offer.value) {
-                          res.json({message: "No such offer"});
+                          return res.json({message: "No such offer"});
                         } else {
                           Booking.updateOne(
                             { 'offerActions.offerId': offerPost.offer, _id : bookingId  },
                             { $set: { 'offerActions.$.actions.$[t].active': false }},
-                            { arrayFilters: [ {"t.type": offerPost.type  } ] } , function(err, booking){
-  
+                            { arrayFilters: [ {"t.type": offerPost.type  } ] } , async (err, booking) => {
+                              if (err) {
+                                return res.status(500).json({ message: 'Internal server error' });
+                              }
                               Place.findOneAndUpdate({_id: offer.value.place}, {$push: {posts: seq.value.seq}});
-                              User.findOneAndUpdate({_id: offerPost.user}, {$push: {offerPosts: seq.value.seq}}, function (err, user) {
-                                if (!user.value) {
-                                  res.json({message: "Mistake in the offer"});
-                                } else {
-                                  res.json({message: "Offer post created"});
+                              let user;
+                              try {
+                                user = await userRepository
+                                  .findOneAndUpdateAction(offerPost.user, offerPost.type, { $push: { offerPosts: seq.value.seq } });
+                                if (!user) {
+                                  return res.status(404).json({ message: 'User not found' });
                                 }
-                              });
+                                return res.json({ message: 'Offer post created' });
+                              } catch (error) {
+                                return res.status(500).json({ message: 'Internal server error' });
+                              }
                             });
                         }
                       });

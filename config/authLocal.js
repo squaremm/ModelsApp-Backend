@@ -148,7 +148,7 @@ module.exports = function (passport) {
         if (body.password === body.confirmPassword) {
           if (body.birthdate && body.nationality && body.instagram_account && body.phone
             && body.firstName && body.LastName && body.sex) {
-            let user = {
+            const user = {
               email: body.email,
               password: bcrypt.hashSync(body.password, bcrypt.genSaltSync(8), null),
               first_name: body.firstName,
@@ -162,6 +162,8 @@ module.exports = function (passport) {
               current_agency: body.current_agency,
               invitation_code: body.invitation_code,
               level: 1,
+              action_counters: {},
+              action_total_counter: 0,
             }
             User.insertOne(user)
             return done(null, user);

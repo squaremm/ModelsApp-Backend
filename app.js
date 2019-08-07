@@ -27,6 +27,7 @@ const newValidator = require('./lib/validator');
 
 const actionPointsRepository = require('./routes/actionPoints/repository');
 const offerRepository = require('./routes/offer/repository');
+const userRepository = require('./routes/user/repository');
 
 require('./config/authJWT')(passport);
 require('./config/authLocal')(passport);
@@ -38,7 +39,7 @@ require('./routes/auth')(app);
 require('./routes/user')(app);
 require('./routes/admins')(app);
 require('./routes/client')(app);
-require('./routes/offer')(app, actionPointsRepository, offerRepository);
+require('./routes/offer')(app, actionPointsRepository, userRepository, offerRepository);
 require('./routes/booking')(app);
 require('./routes/intevals')(app);
 require('./routes/place')(app);

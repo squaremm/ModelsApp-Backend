@@ -43,6 +43,8 @@ exports.createUser = async (req, res, next) => {
                 isPaymentRequired: false,
                 registerStep: 0,
                 level: 1,
+                action_counters: {},
+                action_total_counter: 0,
             };
 
             newUser.loginTypes.push('email');
