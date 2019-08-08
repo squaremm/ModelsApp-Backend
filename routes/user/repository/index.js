@@ -1,24 +1,10 @@
-const db = require('../../../config/connection');
-
-let User;
-db.getInstance((p_db) => {
-  User = p_db.collection('users');
-});
-
-module.exports = {
+const newUserRepository = (model) => ({
   findOne: (id) => {
-    return new Promise((resolve, reject) => {
-      User.findOne({ _id: id }, (err, user) => {
-        if (err) {
-          return reject(err);
-        }
-        return resolve(user);
-      });
-    });
+    return model.findOne({ _id: id });
   },
 
   findOneAndUpdateAction: async (id, actionType, options = {}) => {
-    const user = await User.findOne({ _id: id });
+    const user = await model.findOne({ _id: id });
     if (!user) {
       return null;
     }
@@ -29,7 +15,7 @@ module.exports = {
     const previousValue = action_counters[actionType];
     action_counters[actionType] = previousValue ? previousValue + 1 : 1;
     const newTotalCounter = Object.values(action_counters).reduce((acc, value) => acc + value, 0);
-    const updatedUser = await User.findOneAndUpdate(
+    const updatedUser = await model.findOneAndUpdate(
       { _id: id },
       {
         ...options,
@@ -42,4 +28,6 @@ module.exports = {
 
     return updatedUser.value;
   }
-};
+});
+
+module.exports = newUserRepository;

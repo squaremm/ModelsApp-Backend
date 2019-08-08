@@ -1,12 +1,5 @@
-const db = require('../../../config/connection');
-
-let ActionPoints;
-db.getInstance((p_db) => {
-  ActionPoints = p_db.collection('actionPoints');
-});
-
-module.exports = {
-  /***
+const newActionPointsRepository = (model) => ({
+    /***
    * 
    * @param {str} provider one of 'instaStories', 'instaPost', 'fbPost', 'tripAdvisorPost', 'gPost', 'yelpPost'
    * 
@@ -14,19 +7,14 @@ module.exports = {
    * 
    */
   findOne: (provider) => {
-    return new Promise((resolve, reject) => {
-        ActionPoints.findOne({ provider }, (error, ap) => {
-          if (error) return reject(error);
-          return resolve(ap);
-        });
-      });
-    },
+    return model.findOne({ provider });
+  },
   
   find: (id, provider) => {
     return new Promise((resolve, reject) => {
-      ActionPoints.find(
+      model.find(
         {
-        ...(id && { id }),
+        ...(id && { _id: id }),
         ...(provider && { provider }),
         }).toArray((err, actionPoints) => {
           if (err) reject(err);
@@ -37,7 +25,7 @@ module.exports = {
 
   updateOrCreate(provider, points) {
     return new Promise((resolve, reject) => {
-      ActionPoints.findOneAndUpdate(
+      model.findOneAndUpdate(
         {
           provider,
         },
@@ -56,5 +44,7 @@ module.exports = {
         },
       );
     });
-  }
-};
+  },
+});
+
+module.exports = newActionPointsRepository;
