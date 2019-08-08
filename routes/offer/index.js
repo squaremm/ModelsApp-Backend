@@ -9,6 +9,7 @@ var pushProvider = require('../../lib/pushProvider');
 var dfs = require('obj-traverse/lib/obj-traverse');
 var entityHelper = require('../../lib/entityHelper');
 const calculateActionPoints = require('../actionPoints/calculator/action');
+const postOfferSchema = require('./schema/postOffer');
 
 let User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
 db.getInstance(function (p_db) {
@@ -22,7 +23,7 @@ db.getInstance(function (p_db) {
   SamplePost = p_db.collection('sampleposts');
 });
 
-module.exports = function(app, actionPointsRepository, userRepository, offerRepository) {
+module.exports = function(app, actionPointsRepository, userRepository, offerRepository, validate) {
 
   // app.get('/api/mutate', function (req, res) {
   //   OfferPost.deleteMany({_id: {$in: [12,13,38,39,40,41,42,43,44,45,46,47,48,49,50,51]}});
@@ -192,21 +193,13 @@ module.exports = function(app, actionPointsRepository, userRepository, offerRepo
       });
     });
 
-  validateTimeframes = (timeframes) => {
-    let isValid = true;
-    if(timeframes && Array.isArray(timeframes)){
-      timeframes.forEach(frame => {
-        if(typeof frame !== "string"){
-          isValid = false;
-        }
-      });
-    }else{
-      isValid = false;
-    }
-    return isValid;
-  }
   // Create the offer. Then wait for the post, admin's check of the post, and then close it
   app.post('/api/place/:id/offer', async (req, res) => {
+    const validation = validate(req.body, postOfferSchema);
+    if (validation.error) {
+      return res.status(400).json({ message: validation.error });
+    }
+
     const id = parseInt(req.params.id);
     const {
       name,
@@ -218,68 +211,63 @@ module.exports = function(app, actionPointsRepository, userRepository, offerRepo
       level,
       credits,
     } = req.body;
+    const offer = {
+      name,
+      place: id,
+      user: parseInt(userID),
+      price: parseInt(price),
+      creationDate: moment().format('DD-MM-YYYY'),
+      composition,
+      photo,
+      post: null,
+      closed: false,
+      level: parseInt(level || 1),
+      images: [],
+      mainImage: null,
+      timeframes,
+      credits: _.pickBy(credits, v => v),
+    };
 
-    if (name && id && userID && price && composition && level && credits && validateTimeframes(timeframes)) {
-        const offer = {
-          name,
-          place: id,
-          user: parseInt(userID),
-          price: parseInt(price),
-          creationDate: moment().format('DD-MM-YYYY'),
-          composition,
-          photo,
-          post: null,
-          closed: false,
-          level: parseInt(level || 1),
-          images: [],
-          mainImage: null,
-          timeframes,
-          credits: _.pickBy(credits, v => v),
-        };
-  
-        User.findOne({ _id: offer.user }, { projection: { name: 1 }}, (err, user) => {
-          if (!user) {
-            res.status(404).json({ message: 'No such user' });
-          } else {
-              Counter.findOneAndUpdate(
-                { _id: 'offerid' },
-                { $inc: {seq: 1} },
-                { new: true },
-                (err, seq) => {
-                  if (err) console.error(err);
-                  offer._id = seq.value.seq;
-  
-                 Place.findOneAndUpdate({ _id: id }, { $push: { offers: seq.value.seq } }, async (err, place) => {
-                    if (!place.value) {
-                      res.status(404).json({ message: 'No such place' });
-                    } else {
-                      await User.findOneAndUpdate({ _id: offer.user }, { $push: { offers: seq.value.seq } });
-                      await Offer.insertOne(offer);
-                        
-                      await User.find({ accepted : true }).toArray(async (err, users) => {
-                        await OfferPost.distinct('user', { place: place.value._id }).then(async (posts) => {
-                            let devices = [];
-                            for (post of posts){
-                              const user = users.find(u => u._id == post);
-                              if (user) devices.push(user.devices);
-                            }
-                            if (devices.length){
-                              devices = devices.reduce((a,b) => a.concat(b));
-                              await pushProvider.sendNewOfferNotification(devices, offer, place.value);
-                            }
-                          });
-                        });
-  
-                      res.status(201).json({ message: 'Offer created' });
-                    }
-                  });
+    User.findOne({ _id: offer.user }, { projection: { name: 1 }}, (err, user) => {
+      if (!user) {
+        res.status(404).json({ message: 'No such user' });
+      } else {
+          Counter.findOneAndUpdate(
+            { _id: 'offerid' },
+            { $inc: {seq: 1} },
+            { new: true },
+            (err, seq) => {
+              if (err) console.error(err);
+              offer._id = seq.value.seq;
+
+              Place.findOneAndUpdate({ _id: id }, { $push: { offers: seq.value.seq } }, async (err, place) => {
+                if (!place.value) {
+                  res.status(404).json({ message: 'No such place' });
+                } else {
+                  await User.findOneAndUpdate({ _id: offer.user }, { $push: { offers: seq.value.seq } });
+                  await Offer.insertOne(offer);
+                    
+                  await User.find({ accepted : true }).toArray(async (err, users) => {
+                    await OfferPost.distinct('user', { place: place.value._id }).then(async (posts) => {
+                        let devices = [];
+                        for (post of posts){
+                          const user = users.find(u => u._id == post);
+                          if (user) devices.push(user.devices);
+                        }
+                        if (devices.length){
+                          devices = devices.reduce((a,b) => a.concat(b));
+                          await pushProvider.sendNewOfferNotification(devices, offer, place.value);
+                        }
+                      });
+                    });
+
+                  res.status(201).json({ message: 'Offer created' });
                 }
-              );
-          }
-        });
-    } else {
-      res.json({ message: 'Required fields are not fulfilled, required are: name, userID, price, level, composition, credits and timeframes' });
-    }
+              });
+            }
+          );
+      }
+    });
   });
 
   // Deletes the offer document and all links to it

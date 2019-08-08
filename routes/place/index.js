@@ -1,11 +1,15 @@
-var db = require('../config/connection');
-var middleware = require('../config/authMiddleware');
-var moment = require('moment');
-var imageUplader = require('../lib/imageUplader');
-var multiparty = require('multiparty');
-var entityHelper = require('../lib/entityHelper');
+const _ = require('lodash');
+const moment = require('moment');
+const multiparty = require('multiparty');
 
-var User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
+const db = require('../../config/connection');
+const middleware = require('../../config/authMiddleware');
+const imageUplader = require('../../lib/imageUplader');
+const entityHelper = require('../../lib/entityHelper');
+const newPostPlaceSchema = require('./schema/postPlace');
+const { TIME_FRAMES } = require('./constant');
+
+let User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
 db.getInstance(function (p_db) {
   User = p_db.collection('users');
   Place = p_db.collection('places');
@@ -17,8 +21,7 @@ db.getInstance(function (p_db) {
   SamplePost = p_db.collection('sampleposts');
 });
 
-module.exports = function(app) {
-  
+module.exports = (app, placeRepository, placeTypeRepository, placeExtraRepository, validate) => {
   app.get('/api/place/:id/daysOffs', async (req, res) => {
     var id = parseInt(req.params.id);
       if(id){
@@ -32,69 +35,84 @@ module.exports = function(app) {
         res.status(404).json({message : "invalid parameters"});
       }
   });
+
+  /* migrate place schedules on production */
+  /*
+  app.get('/api/place/migrate', async (req, res) => {
+    await Place.updateMany({ }, { $set: { schedule: {
+      monday: { start: 8, end: 20 },
+      tuesday: { start: 8, end: 20 },
+      wednesday: { start: 8, end: 20 },
+      thursday: { start: 8, end: 20 },
+      friday: { start: 8, end: 20 },
+    }}});
+    res.send('ok');
+  });
+  */
+
   // New Place
-  app.post('/api/place', middleware.isAdmin, function (req, res) {
-
-    var place = {};
-    place.name = req.body.name;
-    place.type = req.body.type;
-    place.address = req.body.address;
-    place.photos = req.body.photos;
-    place.location = {};
-    place.location.type = "Point";
-    place.location.coordinates = [parseFloat(req.body.coordinates[0]), parseFloat(req.body.coordinates[1])];
-    place.socials = {};
-    if(req.body.socials) {
-      place.socials.facebook = req.body.socials.facebook || '';
-      place.socials.tripAdvisor = req.body.socials.tripAdvisor || '';
-      place.socials.google = req.body.socials.google || '';
-      place.socials.yelp = req.body.socials.yelp || '';
-      place.socials.instagram = req.body.socials.instagram || '';
+  app.post('/api/place', async (req, res) => {
+    const validTypes = (await placeTypeRepository.find({}, { projection: { type: 1 } }))
+      .map(placeType => placeType.type);
+    const validExtras = (await placeExtraRepository.find({}, { projection: { name: 1 } }))
+      .map(placeExtra => placeExtra.name);
+    const validation = validate(req.body, newPostPlaceSchema(validTypes, validExtras));
+    if (validation.error) {
+      return res.status(400).json({ message: validation.error });
     }
-    place.level = parseInt(req.body.level);
-    place.description = req.body.description;
-    place.schedule = req.body.schedule;
-    place.slots = parseInt(req.body.slots);
-    place.creationDate = moment().format('DD-MM-YYYY');
-    place.credits = 0;
-    place.bookings = [];
-    place.offers = [];
-    place.posts = [];
-    place.notificationRecivers = [];
-    place.images = [];
-    place.mainImage = null;
-    place.instapage = null;
-    place.daysOffs = [];
-    place.isActive = true;
 
-    // Make all fields required
-    if(!place.name || !place.type || !place.address || !place.photos || !place.location.coordinates ||
-      !place.level || !place.description || !place.schedule || !place.slots){
-      res.json({ message: "Not all fields are provided" });
-    } else {
-      Counter.findOneAndUpdate(
-        { _id: "placeid" },
-        { $inc: { seq: 1 } },
-        {new: true},
-        function(err, seq) {
-          if(err) console.log(err);
-          place._id = seq.value.seq;
-
-          Place.insertOne( place, function() {
-            entityHelper.getNewId('intervalsid').then((id) => {
-              let interval = {
-                _id: id,
-                place: seq.value.seq,
-                intervals: []
-              }
-              Interval.insertOne(interval, function(){
-                res.json({ message: "The place is added", _id: seq.value.seq });
-              })
-            })
-          });
+    const place = {
+      name: req.body.name,
+      type: req.body.type,
+      address: req.body.address,
+      photos: req.body.photos,
+      location: {
+        type: 'Point',
+        coordinates: [parseFloat(req.body.coordinates[0]), parseFloat(req.body.coordinates[1])],
+      },
+      socials: req.body.socials ? 
+        {
+          facebook: req.body.socials.facebook || '',
+          tripAdvisor: req.body.socials.tripAdvisor || '',
+          google: req.body.socials.google || '',
+          yelp: req.body.socials.yelp || '',
+          instagram: req.body.socials.instagram || '',
         }
-      );
-    }
+        : {},
+      level: parseInt(req.body.level),
+      description: req.body.description,
+      schedule: req.body.schedule,
+      slots: parseInt(req.body.slots),
+      creationDate: moment().format('DD-MM-YYYY'),
+      extra: req.body.extra || [],
+      credits: 0,
+      bookings: [],
+      offers: [],
+      posts: [],
+      notificationRecivers: [],
+      images: [],
+      mainImage: null,
+      instapage: null,
+      daysOffs: [],
+      isActive: true,
+    };
+
+    const seq = await Counter.findOneAndUpdate(
+      { _id: 'placeid' },
+      { $inc: { seq: 1 } },
+      { new: true },
+    );
+    place._id = seq.value.seq;
+
+    const placeInserted = await Place.insertOne(place);
+    const id = await entityHelper.getNewId('intervalsid');
+    const interval = {
+      _id: id,
+      place: seq.value.seq,
+      intervals: [],
+    };
+    await Interval.insertOne(interval);
+    return res.status(201).json(placeInserted.ops[0]);
   });
 
   // Edit Place
@@ -145,6 +163,7 @@ module.exports = function(app) {
           
           if(newPlace.photo) place.photos.push(newPlace.photo);
           if(newPlace.photos) place.photos.concat(newPlace.photos);
+          if (newPlace.extra) place.extra = newPlace.extra;
 
           Place.replaceOne({_id: id }, place, function () {
             res.json({ message: "Place updated" });
@@ -167,7 +186,8 @@ module.exports = function(app) {
       if(!places){
         res.json({ message: "Something bad happened" });
       } else {
-        getMoreData(places, res);
+        const extendedData = await getMoreData(places);
+        res.json(extendedData);
       }
     });
   });
@@ -230,35 +250,78 @@ module.exports = function(app) {
     var limit = parseInt(req.params.limit);
     var offset = parseInt(req.params.offset);
     Place.find({}, { projection: { client: 0 }}).skip( ( offset - 1 ) * limit  ).limit( limit ).toArray( async function (err, places) {
-      getMoreData(places, res);
+      const extendedData = await getMoreData(places);
+      res.json(extendedData);
     });
   });
+
+  async function getPlaceQuery(typology, timeFrame, extra) {
+    const query = { isActive: true };
+    if (typology) {
+      const placeType = await placeTypeRepository.findOne(typology);
+      if (placeType) {
+        query.type = placeType.type;
+      }
+    }
+    if (extra) {
+      const placeExtra = await placeExtraRepository.findOne(extra);
+      if (placeExtra) {
+        query.extra = placeExtra.name;
+      }
+    }
+
+    if (
+      timeFrame
+      && _.isPlainObject(timeFrame)
+      && timeFrame.tf
+      && timeFrame.day
+    ) {
+      const tf = TIME_FRAMES[timeFrame.tf.toLowerCase()];
+      const day = timeFrame.day.toLowerCase();
+      if (tf) {
+        query[`schedule.${day}.start`] = { $lte: tf.start };
+        query[`schedule.${day}.end`] = { $gte: tf.end };
+      }
+    }
+
+    return query;
+  }
   
-  app.get('/api/v2/place', middleware.isAuthorized, function (req, res) {
-    Place.find({ isActive : true }, { projection: { client: 0 }}).toArray( async function (err, places) {
-      res.status(200).json(places.map(x => {
-         let newPlace = {
-           _id: x._id,
-           mainImage: x.mainImage,
-           address: x.address,
-           type: x.type,
-           name: x.name,
-           location: x.location.coordinates
-         }
-         return newPlace;
-       }));
-    });
+  app.get('/api/v2/place', middleware.isAuthorized, async (req, res) => {
+    const { typology, timeFrame, extra } = req.query;
+    const query = await getPlaceQuery(typology, timeFrame, extra);
+
+    const places = await placeRepository.find(query, { projection: { client: 0 }});
+    const mappedPlaces = places.map(place => ({
+      _id: place._id,
+      mainImage: place.mainImage,
+      address: place.address,
+      type: place.type,
+      name: place.name,
+      location: place.location.coordinates
+    }));
+    res.status(200).json(mappedPlaces);
   });
+
   // Get all Places
-  app.get('/api/place', function (req, res) {
-    Place.find({ isActive : true }, { projection: { client: 0 }}).toArray( async function (err, places) {
-      getMoreData(places, res);
-    });
+  app.get('/api/place', async (req, res) => {
+    const { typology, timeFrame, extra } = req.query;
+    const query = await getPlaceQuery(typology, timeFrame, extra);
+
+    try {
+      const places = await placeRepository.find(query, { projection: { client: 0 }});
+      const placesJoined = await getMoreData(places);
+  
+      return res.status(200).json(placesJoined);
+    } catch (err) {
+      return res.status(500).json({ message: 'Internal server error' });
+    }
   });
   // Get all Places
   app.get('/api/admin/place', function (req, res) {
     Place.find({ }, { projection: { client: 0 }}).toArray( async function (err, places) {
-      getMoreData(places, res);
+      const extraData = await getMoreData(places);
+      res.json(extraData);
     });
   });
 
@@ -466,7 +529,7 @@ validateDaysOff = (daysOffs) => {
   });
   return isValid;
 }
-async function getMoreData(places, res) {
+async function getMoreData(places) {
   var full = await Promise.all(places.map(async function (place) {
     var interval = await Interval.findOne({ place: place._id });
     var books = await Booking.find({ place: place._id, closed: false }).toArray();
@@ -482,5 +545,5 @@ async function getMoreData(places, res) {
     place.offers = offers || [];
     return place;
   }));
-  res.json(full);
+  return full;
 }
