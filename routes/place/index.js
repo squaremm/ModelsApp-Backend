@@ -9,6 +9,7 @@ const entityHelper = require('../../lib/entityHelper');
 const newPostPlaceSchema = require('./schema/postPlace');
 const newEditPlaceSchema = require('./schema/editPlace');
 const { TIME_FRAMES, ACCESS } = require('./constant');
+const { GENDERS } = require('./../user/constant');
 
 let User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
 db.getInstance(function (p_db) {
@@ -105,7 +106,7 @@ module.exports = (app, placeRepository, placeTypeRepository, placeExtraRepositor
       daysOffs: [],
       isActive: true,
       access: ACCESS.basic,
-      allows: [],
+      allows: Object.values(GENDERS),
     };
 
     const seq = await Counter.findOneAndUpdate(
@@ -138,7 +139,6 @@ module.exports = (app, placeRepository, placeTypeRepository, placeExtraRepositor
     if (validation.error) {
       return res.status(400).json({ message: validation.error });
     }
-    console.log(newPlace);
 
     Place.findOne({_id: id }, function (err, place) {
       err && console.log(err);
