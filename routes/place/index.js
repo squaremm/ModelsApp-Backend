@@ -7,7 +7,7 @@ const middleware = require('../../config/authMiddleware');
 const imageUplader = require('../../lib/imageUplader');
 const entityHelper = require('../../lib/entityHelper');
 const newPostPlaceSchema = require('./schema/postPlace');
-const { TIME_FRAMES } = require('./constant');
+const { TIME_FRAMES, ACCESS } = require('./constant');
 
 let User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
 db.getInstance(function (p_db) {
@@ -95,6 +95,7 @@ module.exports = (app, placeRepository, placeTypeRepository, placeExtraRepositor
       instapage: null,
       daysOffs: [],
       isActive: true,
+      access: ACCESS.basic,
     };
 
     const seq = await Counter.findOneAndUpdate(
@@ -164,6 +165,7 @@ module.exports = (app, placeRepository, placeTypeRepository, placeExtraRepositor
           if(newPlace.photo) place.photos.push(newPlace.photo);
           if(newPlace.photos) place.photos.concat(newPlace.photos);
           if (newPlace.extra) place.extra = newPlace.extra;
+          if (newPlace.access && Object.values(ACCESS).includes(newPlace.access)) place.access = newPlace.access;
 
           Place.replaceOne({_id: id }, place, function () {
             res.json({ message: "Place updated" });
@@ -298,7 +300,8 @@ module.exports = (app, placeRepository, placeTypeRepository, placeExtraRepositor
       address: place.address,
       type: place.type,
       name: place.name,
-      location: place.location.coordinates
+      location: place.location.coordinates,
+      access: place.access,
     }));
     res.status(200).json(mappedPlaces);
   });

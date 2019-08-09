@@ -4,6 +4,7 @@ var entityHelper = require('../lib/entityHelper');
 var token = require('../config/generateToken');
 var crypto = require('crypto');
 var sendGrid = require('../lib/sendGrid');
+const { SUBSCRIPTION } = require('./constant');
 
 var User;
 db.getInstance(function(p_db) {
@@ -32,7 +33,6 @@ exports.createUser = async (req, res, next) => {
                 referredFrom : null,
                 credits : 200,
                 devices : [],
-                plan : {},
                 isAcceptationPending : true,
                 isEmailAcceptationPending : true,
                 temporaryPassword : null,
@@ -45,6 +45,7 @@ exports.createUser = async (req, res, next) => {
                 level: 1,
                 action_counters: {},
                 action_total_counter: 0,
+                subscriptionPlan: { subscription: SUBSCRIPTION.trial },
             };
 
             newUser.loginTypes.push('email');

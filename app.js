@@ -47,7 +47,7 @@ async function bootstrap() {
   require('./config/authFacebook')(passport);
 
   require('./routes/auth')(app);
-  require('./routes/user')(app);
+  require('./routes/user')(app, newValidator());
   require('./routes/admins')(app);
   require('./routes/client')(app);
   require('./routes/offer')(
@@ -116,6 +116,15 @@ function addErrorHandling(app) {
     res.status(500).json({ message: 'Internal server error' });
   });
 }
+
+process
+  .on('unhandledRejection', (reason, p) => {
+    console.error(reason, 'Unhandled Rejection at Promise', p);
+  })
+  .on('uncaughtException', err => {
+    console.error(err, 'Uncaught Exception thrown');
+    process.exit(1);
+  });
 
 bootstrap();
 

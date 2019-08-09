@@ -1,9 +1,13 @@
-const db = require('../config/connection');
+const _ = require('lodash');
 const moment = require('moment');
+const crypto = require('crypto');
+
+const db = require('../config/connection');
 const sendGrid = require('../lib/sendGrid');
 const entityHelper = require('../lib/entityHelper');
+const { SUBSCRIPTION, SUBSCRIPTION_BOOKING_LIMITS } = require('./../config/constant');
+const { ACCESS } = require('./place/constant');
 
-const crypto = require('crypto');
 const calculateOfferPoints = require('./actionPoints/calculator/offer');
 
 let User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
@@ -19,6 +23,50 @@ db.getInstance(function (p_db) {
 });
 
 module.exports = function(app) {
+
+  /* migrate creationDate on Booking locally */
+  /*
+  app.get('/api/booking/migrate', async (req, res) => {
+    const a = await Booking.find({}).toArray();
+
+    const ps = await Promise.all(a.map(async (el) => {
+      const parts = el.creationDate.split("-");
+      el.creationDate = moment(new Date(parts[2], parts[1] - 1, parts[0])).add({days:1}).subtract({hours:22}).toISOString();
+      await Booking.replaceOne({ _id: el._id }, el);
+    }));
+
+    res.send(ps);
+  });
+  */
+
+  /* migrate users subscriptions to unlimited */
+  /*
+  app.get('/api/booking/user/migrate', async (req, res) => {
+    const users = await User.find({}).toArray();
+
+    await Promise.all(users.map(async (user) => {
+      user.subscriptionPlan = { subscription: SUBSCRIPTION.unlimited };
+      const newUser = _.omit(user, ['plan']);
+      await User.replaceOne({ _id: user._id }, newUser);
+    }));
+
+    res.send('ok');
+  });
+  */
+
+  /* migrate places access to basic */
+  /*
+  app.get('/api/booking/place/migrate', async (req, res) => {
+    const places = await Place.find({}).toArray();
+
+    await Promise.all(places.map(async (place) => {
+      place.access = ACCESS.basic;
+      await Place.replaceOne({ _id: place._id }, place);
+    }));
+
+    res.send('ok');
+  });
+  */
 
   app.get('/api/place/:id/book/slots', async (req, res) => {
     const id = parseInt(req.params.id);
@@ -283,6 +331,62 @@ module.exports = function(app) {
     })
   });
 
+  async function userBookingsLimitReached(user) {
+    if (user._id = 295) {
+      user.subscriptionPlan.subscription = 'Basic';
+    }
+    const startMonth = moment.utc().startOf('month').toISOString();
+    const endMonth = moment.utc().endOf('month').toISOString();
+    const recentUserBookings = await Booking.find({
+      user: user._id,
+      creationDate: {
+        $gte: startMonth,
+        $lt: endMonth,
+      },
+    }).toArray();
+
+    const numBookings = recentUserBookings.length;
+    switch(user.subscriptionPlan.subscription) {
+      case SUBSCRIPTION.trial: {
+        if (numBookings >= SUBSCRIPTION_BOOKING_LIMITS.trial) {
+          return true;
+        }
+      }
+      case SUBSCRIPTION.basic: {
+        if (numBookings >= SUBSCRIPTION_BOOKING_LIMITS.basic) {
+          return true;
+        }
+      }
+      case SUBSCRIPTION.premium: {
+        if (numBookings >= SUBSCRIPTION_BOOKING_LIMITS.premium) {
+          return true;
+        }
+      }
+      case SUBSCRIPTION.unlimited: {
+        return false;
+      }
+      default: return false;
+    }
+  }
+
+  async function userCanBook(user, place) {
+    const { subscriptionPlan: { subscription } } = user;
+    if (subscription === SUBSCRIPTION.trial || subscription === SUBSCRIPTION.basic) {
+      if (place.access === ACCESS.basic) {
+        return true;
+      }
+      if (place.access === ACCESS.premium) {
+        return false;
+      }
+    }
+
+    if (subscription === SUBSCRIPTION.premium || subscription === SUBSCRIPTION.unlimited) {
+      return true;
+    }
+
+    return false;
+  }
+
   app.post('/api/v2/place/:id/book', async (req, res) => {
     let id = parseInt(req.params.id);
     let userID  = parseInt(req.body.userID);
@@ -306,20 +410,28 @@ module.exports = function(app) {
         if(place && user && interval && choosenInterval){
           if(choosenInterval.day && choosenInterval.day == dayWeek){
             if(moment(`${date.format('YYYY-MM-DD')} ${choosenInterval.start.replace('.',':')}`).isValid()){
-
               let fullDate = moment(`${date.format('YYYY-MM-DD')} ${choosenInterval.start.replace('.',':')}`);
               let timesValidation = await validateTimes(fullDate);
+
               if(timesValidation.isValid){
                 let userValidation = await validateUserPossibility(fullDate, user, offers, place);
+
                 if(userValidation.isValid){
                   let validateInterval = await validateIntervalSlots(choosenInterval, fullDate, place);
+
                   if(validateInterval.free > 0){
+                    if (await userBookingsLimitReached(user)) {
+                      return res.status(403).json({ message: 'User has exceeded his monthly bookings limit' });
+                    }
+                    if (!(await userCanBook(user, place))) {
+                      return res.status(403).json({ message: `User's subscription plan is insufficient for this venue` });
+                    }
                     let newBooking = {
                       _id: await entityHelper.getNewId('bookingid'),
                       user: userID,
                       place: id,
                       date: moment(fullDate).format('DD-MM-YYYY'),
-                      creationDate: moment().format('DD-MM-YYYY'),
+                      creationDate: new Date().toISOString(),
                       closed: false,
                       claimed: false,
                       offers: [],
@@ -333,8 +445,8 @@ module.exports = function(app) {
                   }
                   await Booking.insertOne(newBooking);
                   await User.findOneAndUpdate({_id: newBooking.user}, {
-                    $push: {bookings: newBooking._id},
-                    $inc: {credits: parseInt(-1 * newBooking.payed)}
+                    $push: { bookings: newBooking._id },
+                    $inc: { credits: parseInt(-1 * newBooking.payed) }
                   });
                   await sendBookingEmailMessage(place, newBooking);
                   res.status(200).json({message: "Booked"});
@@ -455,13 +567,20 @@ module.exports = function(app) {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    if (await userBookingsLimitReached(user)) {
+      return res.status(403).json({ message: 'User has exceeded his monthly bookings limit' });
+    }
+    if (!(await userCanBook(user, place))) {
+      return res.status(403).json({ message: `User's subscription plan is insufficient for this venue` });
+    }
+
     if (req.body.interval !== undefined && req.body.date && id) {
       var intervalNum = parseInt(req.body.interval);
       const newBooking = {
         user: parseInt(req.body.userID),
         place: id,
         date: req.body.date, //moment(req.body.date).format('DD-MM-YYYY')
-        creationDate: moment().format('DD-MM-YYYY'),
+        creationDate: new Date().toISOString(),
         closed: false,
         claimed: false,
         offers: [],
