@@ -16,3 +16,8 @@ exports.TIME_FRAMES = Object.freeze({
     end: 24,
   },
 });
+
+exports.ACCESS = Object.freeze({
+  basic: 'basic',
+  premium: 'premium',
+});

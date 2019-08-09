@@ -10,6 +10,8 @@ var multiparty = require('multiparty');
 var pushProvider = require('../../lib/pushProvider');
 var path = require('path');
 var entityHelper = require('../../lib/entityHelper');
+const newPostSubscriptionSchema = require('./schema/postSubscription');
+const { SUBSCRIPTION } = require('./../../config/constant');
 
 var User, Booking, Offer, Place, OfferPost, UserPaymentToken;
 db.getInstance(function (p_db) {
@@ -21,7 +23,7 @@ db.getInstance(function (p_db) {
   UserPaymentToken = p_db.collection('userPaymentTokens');
 });
 
-module.exports = function(app) {
+module.exports = (app, validate) => {
 
   // Get the current (authenticated) User
   app.get('/api/user/current', middleware.isAuthorized, async function (req, res) {
@@ -123,34 +125,33 @@ module.exports = function(app) {
     });
   });
 
-  // Add a price plan to the user
-  app.put('/api/user/:id/plan', function (req, res) {
-    var id = parseInt(req.params.id);
-
-    if(req.body.plan && req.body.months && id) {
-      var plan = {};
-      plan.plan = req.body.plan;
-      plan.payedDate = moment().format('DD-MM-YYYY');
-      plan.dueTo = moment().add(parseInt(req.body.months), 'M').format('DD-MM-YYYY');
-      plan.active = true;
-
-      User.findOneAndUpdate({ _id: id }, { $set: { plan: plan }}, function (err, user) {
-        if(!user.value) {
-          res.json({ message: "No such user" });
-        } else {
-          res.json({ message: "Successfully updated" });
-        }
-      })
-    } else {
-      res.json({ message: "Not all fields are provided" });
+  // Add a subscription to the user
+  app.put('/api/user/subscription', async (req, res) => {
+    const validation = validate(req.body, newPostSubscriptionSchema());
+    if (validation.error) {
+      return res.status(400).json({ message: validation.error });
     }
-  });
 
-  // Get User Plans for the Admins wallet section
-  app.get('/api/users/plan', function (req, res) {
-    User.find({ 'plan.plan': { $exists: true }}, { projection: { name: 1, surname: 1, photo: 1, credits: 1, plan: 1 }}).toArray(function (err, users) {
-      res.json(users)
-    });
+    const { userId, subscription, months } = req.body;
+    let subscriptionPlan;
+    if (subscription === SUBSCRIPTION.trial || subscription === SUBSCRIPTION.unlimited) {
+      subscriptionPlan = {
+        subscription,
+      };
+    } else {
+      subscriptionPlan = {
+        subscription,
+        paidAt: moment().toISOString(),
+        dueTo: moment().add(months, 'M').toISOString(),
+      };
+    }
+
+    try {
+      await User.findOneAndUpdate({ _id: userId }, { $set: { subscriptionPlan } });
+      return res.status(200).json(subscriptionPlan);
+    } catch (err) {
+      return res.status(500).json({ message: 'Internal server error' });
+    }
   });
 
   // Edit Current (authenticated) User

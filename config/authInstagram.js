@@ -2,6 +2,7 @@ var Strategy = require('passport-instagram').Strategy;
 var config = require('./index');
 var db = require('./connection');
 var crypto = require('crypto');
+const { SUBSCRIPTION } = require('./constant');
 
 var User;
 var Counter;
@@ -58,12 +59,12 @@ module.exports = function(passport) {
               referralCode: crypto.randomBytes(2).toString('hex'),
               referredFrom: null,
               devices: [],
-              plan: {},
               isAcceptationPending: true,
               loginTypes: ['instagram'],
               level: 1,
               action_counters: {},
               action_total_counter: 0,
+              subscriptionPlan: { subscription: SUBSCRIPTION.trial },
             };
             
             // Update counters. In mongo we need an another collection to store the autoincrement
