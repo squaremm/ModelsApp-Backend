@@ -387,6 +387,10 @@ module.exports = function(app) {
     return false;
   }
 
+  function placeAllowsUserGender(place, user) {
+    return place.allows.includes(user.gender);
+  }
+
   app.post('/api/v2/place/:id/book', async (req, res) => {
     let id = parseInt(req.params.id);
     let userID  = parseInt(req.body.userID);
@@ -399,6 +403,9 @@ module.exports = function(app) {
         let user = await User.findOne({_id : userID });
         let interval = await Interval.findOne({ place : id });
         let offers = await Offer.find({place: id}).toArray();
+        if (!placeAllowsUserGender(place, user)) {
+          return res.status(403).json({ message: `Venue does not accept user's gender` });
+        }
         offers = generateOfferPrices(offers, user.level);
 
         let intervals = interval.intervals.map((interval) => {
@@ -552,6 +559,10 @@ module.exports = function(app) {
   app.post('/api/place/:id/book', async (req, res) => {
     var id = parseInt(req.params.id);
     const { userID } = req.body;
+    const p = await Place.findOne({ _id: id });
+    if (!p) {
+      return res.status(404).json({ message: 'Place not found' });
+    }
 
     if (!userID) {
       return res.json({ message: 'Required fields are not fulfilled' });
@@ -567,10 +578,13 @@ module.exports = function(app) {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    if (!placeAllowsUserGender(p, user)) {
+      return res.status(403).json({ message: `Venue does not accept user's gender` });
+    }
     if (await userBookingsLimitReached(user)) {
       return res.status(403).json({ message: 'User has exceeded his monthly bookings limit' });
     }
-    if (!(await userCanBook(user, place))) {
+    if (!(await userCanBook(user, p))) {
       return res.status(403).json({ message: `User's subscription plan is insufficient for this venue` });
     }
 

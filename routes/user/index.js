@@ -11,6 +11,7 @@ var pushProvider = require('../../lib/pushProvider');
 var path = require('path');
 var entityHelper = require('../../lib/entityHelper');
 const newPostSubscriptionSchema = require('./schema/postSubscription');
+const newEditUserSchema = require('./schema/editUser');
 const { SUBSCRIPTION } = require('./../../config/constant');
 
 var User, Booking, Offer, Place, OfferPost, UserPaymentToken;
@@ -126,7 +127,7 @@ module.exports = (app, validate) => {
   });
 
   // Add a subscription to the user
-  app.put('/api/user/subscription', async (req, res) => {
+  app.put('/api/user/subscription', middleware.isAuthorized, async (req, res) => {
     const validation = validate(req.body, newPostSubscriptionSchema());
     if (validation.error) {
       return res.status(400).json({ message: validation.error });
@@ -156,16 +157,24 @@ module.exports = (app, validate) => {
 
   // Edit Current (authenticated) User
   app.put('/api/user/current', middleware.isAuthorized, async function (req, res) {
-    var newUser = req.body;
-    var user1 = await req.user;
+    const newUser = req.body;
+    const validation = validate(newUser, newEditUserSchema());
+    if (validation.error) {
+      return res.status(400).json({ message: validation.error });
+    }
+    const user1 = await req.user;
 
     editUser(parseInt(user1._id), newUser, res);
   });
 
   // Edit specific User
   app.put('/api/user/:id', function (req, res) {
-    var id = parseInt(req.params.id);
-    var newUser = req.body;
+    const id = parseInt(req.params.id);
+    const newUser = req.body;
+    const validation = validate(newUser, newEditUserSchema());
+    if (validation.error) {
+      return res.status(400).json({ message: validation.error });
+    }
 
     editUser(id, newUser, res);
   });
@@ -489,9 +498,7 @@ module.exports = (app, validate) => {
   });
 };
 
-
-
-function editUser(id, newUser, res){
+function editUser(id, newUser, res) {
   User.findOne({ _id: id }, function (err, user) {
     err && console.log(err);
 
