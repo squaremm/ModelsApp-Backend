@@ -7,6 +7,7 @@ const middleware = require('../../config/authMiddleware');
 const imageUplader = require('../../lib/imageUplader');
 const entityHelper = require('../../lib/entityHelper');
 const newPostPlaceSchema = require('./schema/postPlace');
+const newEditPlaceSchema = require('./schema/editPlace');
 const { TIME_FRAMES, ACCESS } = require('./constant');
 
 let User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
@@ -46,6 +47,14 @@ module.exports = (app, placeRepository, placeTypeRepository, placeExtraRepositor
       thursday: { start: 8, end: 20 },
       friday: { start: 8, end: 20 },
     }}});
+    res.send('ok');
+  });
+  */
+
+  /* migrate places allows field */
+  /*
+  app.get('/api/place/migrate', async (req, res) => {
+    await Place.updateMany({ }, { $set: { allows: ['male', 'female']} });
     res.send('ok');
   });
   */
@@ -96,6 +105,7 @@ module.exports = (app, placeRepository, placeTypeRepository, placeExtraRepositor
       daysOffs: [],
       isActive: true,
       access: ACCESS.basic,
+      allows: [],
     };
 
     const seq = await Counter.findOneAndUpdate(
@@ -117,9 +127,18 @@ module.exports = (app, placeRepository, placeTypeRepository, placeExtraRepositor
   });
 
   // Edit Place
-  app.put('/api/place/:id', function (req, res) {
-    var id = parseInt(req.params.id);
-    var newPlace = req.body.place;
+  app.put('/api/place/:id', async (req, res) => {
+    const id = parseInt(req.params.id);
+    const newPlace = req.body.place;
+    const validTypes = (await placeTypeRepository.find({}, { projection: { type: 1 } }))
+      .map(placeType => placeType.type);
+    const validExtras = (await placeExtraRepository.find({}, { projection: { name: 1 } }))
+      .map(placeExtra => placeExtra.name);
+    const validation = validate(newPlace, newEditPlaceSchema(validTypes, validExtras));
+    if (validation.error) {
+      return res.status(400).json({ message: validation.error });
+    }
+    console.log(newPlace);
 
     Place.findOne({_id: id }, function (err, place) {
       err && console.log(err);
@@ -139,8 +158,8 @@ module.exports = (app, placeRepository, placeTypeRepository, placeExtraRepositor
           if(newPlace.address !== place.address && newPlace.address) place.address = newPlace.address;
           if(newPlace.photos !== place.photos && newPlace.photos) place.photos = newPlace.photos;
           if(newPlace.description !== place.description && newPlace.description) place.description = newPlace.description;
-          if(newPlace.slots !== place.slots && newPlace.slots) place.slots = parseInt(newPlace.slots);
-          if(newPlace.level !== place.level && newPlace.level) place.level = parseInt(newPlace.level);
+          if(newPlace.slots !== place.slots && newPlace.slots) place.slots = newPlace.slots;
+          if(newPlace.level !== place.level && newPlace.level) place.level = newPlace.level;
           if(newPlace.socials) {
             if(newPlace.socials.facebook !== place.socials.facebook && newPlace.socials.facebook) place.socials.facebook = newPlace.socials.facebook;
             if(newPlace.socials.google !== place.socials.google && newPlace.socials.google) place.socials.google = newPlace.socials.google;
@@ -165,7 +184,8 @@ module.exports = (app, placeRepository, placeTypeRepository, placeExtraRepositor
           if(newPlace.photo) place.photos.push(newPlace.photo);
           if(newPlace.photos) place.photos.concat(newPlace.photos);
           if (newPlace.extra) place.extra = newPlace.extra;
-          if (newPlace.access && Object.values(ACCESS).includes(newPlace.access)) place.access = newPlace.access;
+          if (newPlace.access) place.access = newPlace.access;
+          if (newPlace.allows) place.allows = newPlace.allows;
 
           Place.replaceOne({_id: id }, place, function () {
             res.json({ message: "Place updated" });
