@@ -114,7 +114,7 @@ function addMiddlewares(app) {
   const corsOptions = {
     "origin": "*",
     "methods": "GET,PUT,POST,DELETE",
-    "allowedHeaders": "Content-Type, Authorization, Content-Length, X-Requested-With"
+    "allowedHeaders": "Content-Type, Authorization, Content-Length, X-Requested-With, x-custom-header"
   };
   app.use(cors(corsOptions));
   app.use(express.json());
