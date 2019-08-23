@@ -16,8 +16,8 @@ const getObjectId = (id) => {
 }
 
 class EventBookingRepository extends Repository {
-  constructor(model) {
-    super(model);
+  constructor(model, client) {
+    super(model, client);
   }
 
   async insertOne ({ eventId, userId, bookings }) {
@@ -32,7 +32,7 @@ class EventBookingRepository extends Repository {
     return result.ops[0];
   }
 
-  async updateOne(id, { rides, offers }) {
+  async updateOne(id, { bookings }) {
     const oid = getObjectId(id);
     const result = await this.model.findOneAndUpdate(
       {
@@ -40,8 +40,7 @@ class EventBookingRepository extends Repository {
       },
       {
         $set: {
-          ...(rides && { rides }),
-          ...(offers && { offers }),
+          ...(bookings && { bookings }),
         }
       },
       {
@@ -96,6 +95,6 @@ class EventBookingRepository extends Repository {
   }
 }
 
-const newEventBookingRepository = (model) => new EventBookingRepository(model);
+const newEventBookingRepository = (model, client) => new EventBookingRepository(model, client);
 
 module.exports = newEventBookingRepository;

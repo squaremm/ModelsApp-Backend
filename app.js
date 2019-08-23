@@ -8,6 +8,7 @@ const Sentry = require('@sentry/node');
 
 const db = require('./config/connection');
 const newValidator = require('./lib/validator');
+const ErrorResponse = require('./core/errorResponse');
 
 const newActionPointsRepository = require('./routes/actionPoints/repository');
 const newOfferRepository = require('./routes/offer/repository');
@@ -30,6 +31,7 @@ const newPlaceUtil = require('./routes/place/util');
 const newBookingUtil = require('./routes/booking/util');
 
 async function bootstrap() {
+  let client;
   Sentry.init({ dsn: config.sentryUrl });
   await new Promise((resolve, reject) => db.initPool(() => resolve()));
  
@@ -37,7 +39,7 @@ async function bootstrap() {
     OfferPost, Interval, SamplePost, ActionPoints, PlaceType, PlaceExtra,
     Event, DriverRide, EventBooking, Ride;
   await new Promise((resolve) => {
-    db.getInstance((p_db) => {
+    db.getInstance((p_db, c) => {
       User = p_db.collection('users');
       Place = p_db.collection('places');
       Offer = p_db.collection('offers');
@@ -56,6 +58,8 @@ async function bootstrap() {
       DriverRide = p_db.collection('driverRides');
       EventBooking = p_db.collection('eventBookings');
       Ride = p_db.collection('rides');
+
+      client = c;
       resolve();
     });
   });
@@ -145,12 +149,12 @@ async function bootstrap() {
     app,
     newDriverRideRepository(DriverRide),
     newDriverRepository(Driver),
-    newEventBookingRepository(EventBooking),
+    newEventBookingRepository(EventBooking, client),
     newValidator(),
   );
   require('./routes/eventBooking')(
     app,
-    newEventBookingRepository(EventBooking),
+    newEventBookingRepository(EventBooking, client),
     newEventRepository(Event),
     newUserRepository(User),
     newBookingUtil(
@@ -159,6 +163,12 @@ async function bootstrap() {
       Interval,
       Offer,
       Booking,
+      newPlaceUtil(
+        newBookingRepository(Booking),
+        newIntervalRepository(Interval),
+        newPlaceTypeRepository(PlaceType),
+        newPlaceExtraRepository(PlaceExtra)
+      ),
     ),
     newValidator(),
   );
@@ -166,10 +176,12 @@ async function bootstrap() {
     app,
     newRideRepository(Ride),
     newDriverRideRepository(DriverRide),
-    newEventBookingRepository(EventBooking),
+    newEventBookingRepository(EventBooking, client),
     newDriverRepository(Driver),
     newValidator(),
   );
+
+  addErrorHandling(app);
 
   functions.checkBookingExpired(db);
   functions.sendReportBookingEmail(db);
@@ -191,7 +203,6 @@ function addMiddlewares(app) {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
   app.use(passport.initialize());
-  addErrorHandling(app);
 }
 
 function addErrorHandling(app) {
@@ -207,7 +218,11 @@ function addErrorHandling(app) {
       body: req.body,
     }
     Sentry.captureException(exceptionObject);
-    res.status(500).json({ message: 'Internal server error' });
+    if (err instanceof ErrorResponse) {
+      return res.status(err.status).json({ message: err.message });
+    }
+    console.error(err);
+    return res.status(500).json({ message: 'Internal server error' });
   });
 }
 
