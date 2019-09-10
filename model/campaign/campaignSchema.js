@@ -57,6 +57,14 @@ let CampaignSchema =  new Schema({
       use: { validateDate },
       required : true
     },
+    credits: {
+      type: Number,
+      required: true
+    },
+    maxParticipantsCount: {
+      type: Number,
+      required: true
+    },
     rewards: {
       type: Array,
       required : true
