@@ -190,6 +190,25 @@ module.exports = function(app) {
     }
   });
 
+  // Get the statistics for the Overview section in Admins Page
+  app.get('/api/statistics/overview', async function (req, res) {
+
+    var markers = await Place.find({}, {projection: {location: 1, name: 1}}).toArray();
+    var postsCount = await OfferPost.countDocuments();
+
+    var plansCount = {
+      Basic: 0,
+      Growth: 0,
+      Energy: 0
+    };
+    var plans = await User.find({'plan.plan': {$exists: true}}, {projection: {plan: 1}}).toArray();
+    plans.forEach(function (plan) {
+      if (plan.plan.plan in plansCount) plansCount[plan.plan.plan]++;
+    });
+
+    res.json({markers: markers, postsCount: postsCount, plansCount: plansCount});
+  });
+
   // Get the data for the chart on the Admins page
   app.get('/api/statistics/charts/growth', async function (req, res) {
     var users = await User.aggregate([{

@@ -4,7 +4,6 @@ var bcrypt = require('bcrypt-nodejs');
 var moment = require('moment');
 var pushProvider = require('../lib/pushProvider');
 var entityHelper = require('../lib/entityHelper');
-const { SUBSCRIPTION } = require('./constant');
 
 var Counter, Place;
 db.getInstance(function (p_db) {
@@ -76,6 +75,7 @@ module.exports = function (passport) {
                     daysOffs: [],
                     isActive: true
                   };
+                  console.log(newPlace)
                   Place.insertOne(newPlace);
                   entityHelper.getNewId('intervalsid').then((id) => {
                     let interval = {
@@ -148,7 +148,7 @@ module.exports = function (passport) {
         if (body.password === body.confirmPassword) {
           if (body.birthdate && body.nationality && body.instagram_account && body.phone
             && body.firstName && body.LastName && body.sex) {
-            const user = {
+            let user = {
               email: body.email,
               password: bcrypt.hashSync(body.password, bcrypt.genSaltSync(8), null),
               first_name: body.firstName,
@@ -160,13 +160,10 @@ module.exports = function (passport) {
               phone: body.phone,
               mother_agency: body.mother_agency,
               current_agency: body.current_agency,
-              invitation_code: body.invitation_code,
-              level: 1,
-              action_counters: {},
-              action_total_counter: 0,
-              subscriptionPlan: { subscription: SUBSCRIPTION.trial },
+              invitation_code: body.invitation_code
             }
             User.insertOne(user)
+            console.log('user is ',user);
             return done(null, user);
           }
           else {

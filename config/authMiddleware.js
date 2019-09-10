@@ -1,6 +1,4 @@
-const passport = require('passport');
-
-const ErrorResponse = require('./../core/errorResponse');
+var passport = require('passport');
 
 module.exports = {
   isAuthorized: function (req, res, next) {
@@ -23,40 +21,6 @@ module.exports = {
       } else {
         req.user = client;
         next();
-      }
-    })(req, res, next);
-  },
-
-  isDriver: (req, res, next) => {
-    return passport.authenticate('jwt', { session: false }, (err, user) => {
-      if (err) {
-        throw ErrorResponse.Internal();
-      }
-      try {
-        if (!user || !user.driver) {
-          throw ErrorResponse.Unauthorized();
-        }
-        req.user = user;
-        return next();
-      } catch (e) {
-        return next(e);
-      }
-    })(req, res, next);
-  },
-
-  isDriverCaptain: (req, res, next) => {
-    return passport.authenticate('jwt', { session: false }, (err, user) => {
-      if (err) {
-        throw ErrorResponse.Internal();
-      }
-      try {
-        if (!user || !user.driverCaptain) {
-          throw ErrorResponse.Unauthorized();
-        }
-        req.user = user;
-        return next();
-      } catch (e) {
-        return next(e);
       }
     })(req, res, next);
   },
