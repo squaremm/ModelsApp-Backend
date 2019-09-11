@@ -60,8 +60,9 @@ function intervalFuncSendReportBookingEmail (db) {
         Place.find({ }).toArray(async (error, places) => {
           places.forEach(async (place) => {
             if(place.notificationRecivers && place.notificationRecivers.length > 0){
-              var today = moment().format('DD-MM-YYYY');
-             await Booking.find({ creationDate: {$eq: today}, place: place._id }).toArray(async (error, bookings) => {
+            const startToday = moment.utc().startOf('day').toISOString();
+            const endToday = moment.utc().endOf('day').toISOString(); 
+             await Booking.find({ creationDate: { $gte: startToday, $lt: endToday }, place: place._id }).toArray(async (error, bookings) => {
                 var listToSend = [];
                 await bookings.forEach(async (booking) => {
                   var user = users.find(x=>x._id == booking.user);

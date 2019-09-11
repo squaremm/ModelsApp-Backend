@@ -9,10 +9,11 @@ exports.toMobileViewModel = (campaigns, currentUser, withDetails) => {
         x.daysToStart = moment(x.startAt).diff(now, 'days') < 0 ? 0 : moment(x.startAt).diff(now, 'days');
         x.daysToPicture =  moment(x.uploadPicturesTo).diff(now, 'days') < 0 ? 0 : moment(x.uploadPicturesTo).diff(now, 'days');
         x.daysToInstagramPicture =  moment(x.uploadPicturesInstagramTo).diff(now, 'days') < 0 ? 0 : moment(x.uploadPicturesInstagramTo).diff(now, 'days');
-        x.isJoinable = x.daysToStart > 0 && x.users.filter(x=> x == currentUser._id).length == 0;
+        x.isJoinable = x.daysToStart > 0 && x.users.filter(x=> x == currentUser._id).length == 0 && (x.acceptedUsers ? x.maxParticipantsCount - x.acceptedUsers.length > 0 : true) ;
         x.isParticipant = x.users.filter(x=> x == currentUser._id).length > 0;
         x.isWinner = x.winners.filter(x => x.user == currentUser._id).length > 0;
         x.hasWinner = x.winners.length > 0;
+        x.participantsCount = x.acceptedUsers ? x.maxParticipantsCount - x.acceptedUsers.length : x.maxParticipantsCount;
         delete x.startAt;
         delete x.uploadPicturesInstagramTo;
         delete x.uploadPicturesTo;
@@ -20,6 +21,7 @@ exports.toMobileViewModel = (campaigns, currentUser, withDetails) => {
         delete x.availableTill;
         delete x.users;
         delete x.qrCode;
+        delete x.acceptedUsers;
         if(!withDetails){
           delete x.rewards;
           delete x.tasks;
