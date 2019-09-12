@@ -2,7 +2,6 @@ var Strategy = require('passport-instagram').Strategy;
 var config = require('./index');
 var db = require('./connection');
 var crypto = require('crypto');
-const { SUBSCRIPTION } = require('./constant');
 
 var User;
 var Counter;
@@ -45,27 +44,23 @@ module.exports = function(passport) {
             }
           } else {
             // If it is the first time for the user - create new user in DB
-            const newUser = {
-              photo: profile._json.data.profile_picture,
-              accepted: false,
-              newUser: true,
-              credits: 200,
-              instagram: {
-                id: profile.id,
-                username: profile.username,
-                counts: profile._json.data.counts,
-                full_name: profile._json.data.full_name,
-              },
-              referralCode: crypto.randomBytes(2).toString('hex'),
-              referredFrom: null,
-              devices: [],
-              isAcceptationPending: true,
-              loginTypes: ['instagram'],
-              level: 1,
-              action_counters: {},
-              action_total_counter: 0,
-              subscriptionPlan: { subscription: SUBSCRIPTION.trial },
-            };
+            var newUser = {};
+            newUser.photo = profile._json.data.profile_picture;
+            newUser.accepted = false;
+            newUser.newUser = true;
+            newUser.credits = 200;
+            newUser.instagram = {};
+            newUser.instagram.id = profile.id;
+            newUser.instagram.username = profile.username;
+            newUser.instagram.counts = profile._json.data.counts;
+            newUser.instagram.full_name = profile._json.data.full_name;
+            newUser.referralCode = crypto.randomBytes(2).toString('hex');
+            newUser.referredFrom = null;
+            newUser.devices = [];
+            newUser.plan = {};
+            newUser.isAcceptationPending = true;
+            newUser.loginTypes = [];
+            newUser.loginTypes.push('instagram');
             
             // Update counters. In mongo we need an another collection to store the autoincrement
             Counter.findOneAndUpdate(

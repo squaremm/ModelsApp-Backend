@@ -1,20 +1,15 @@
-var db = require('../../config/connection');
-var middleware = require('../../config/authMiddleware');
+var db = require('../config/connection');
+var middleware = require('../config/authMiddleware');
 var apn = require('apn');
 var moment = require('moment');
 var crypto = require('crypto');
-var sendGrid = require('../../lib/sendGrid');
+var sendGrid = require('../lib/sendGrid');
 var bcrypt = require('bcrypt-nodejs');
-var imageUplader = require('../../lib/imageUplader');
+var imageUplader = require('../lib/imageUplader');
 var multiparty = require('multiparty');
-var pushProvider = require('../../lib/pushProvider');
+var pushProvider = require('../lib/pushProvider');
 var path = require('path');
-var entityHelper = require('../../lib/entityHelper');
-const newPostSubscriptionSchema = require('./schema/postSubscription');
-const newEditUserSchema = require('./schema/editUser');
-const newEditUserAdminSchema = require('./schema/editUserAdmin');
-const { SUBSCRIPTION } = require('./../../config/constant');
-const ErrorResponse = require('./../../core/errorResponse');
+var entityHelper = require('../lib/entityHelper');
 
 var User, Booking, Offer, Place, OfferPost, UserPaymentToken;
 db.getInstance(function (p_db) {
@@ -26,7 +21,7 @@ db.getInstance(function (p_db) {
   UserPaymentToken = p_db.collection('userPaymentTokens');
 });
 
-module.exports = (app, validate) => {
+module.exports = function(app) {
 
   // Get the current (authenticated) User
   app.get('/api/user/current', middleware.isAuthorized, async function (req, res) {
@@ -128,69 +123,48 @@ module.exports = (app, validate) => {
     });
   });
 
-  // Add a subscription to the user
-  app.put('/api/user/subscription', middleware.isAuthorized, async (req, res) => {
-    const validation = validate(req.body, newPostSubscriptionSchema());
-    if (validation.error) {
-      return res.status(400).json({ message: validation.error });
-    }
+  // Add a price plan to the user
+  app.put('/api/user/:id/plan', function (req, res) {
+    var id = parseInt(req.params.id);
 
-    const { userId, subscription, months } = req.body;
-    let subscriptionPlan;
-    if (subscription === SUBSCRIPTION.trial || subscription === SUBSCRIPTION.unlimited) {
-      subscriptionPlan = {
-        subscription,
-      };
+    if(req.body.plan && req.body.months && id) {
+      var plan = {};
+      plan.plan = req.body.plan;
+      plan.payedDate = moment().format('DD-MM-YYYY');
+      plan.dueTo = moment().add(parseInt(req.body.months), 'M').format('DD-MM-YYYY');
+      plan.active = true;
+
+      User.findOneAndUpdate({ _id: id }, { $set: { plan: plan }}, function (err, user) {
+        if(!user.value) {
+          res.json({ message: "No such user" });
+        } else {
+          res.json({ message: "Successfully updated" });
+        }
+      })
     } else {
-      subscriptionPlan = {
-        subscription,
-        paidAt: moment().toISOString(),
-        dueTo: moment().add(months, 'M').toISOString(),
-      };
-    }
-
-    try {
-      await User.findOneAndUpdate({ _id: userId }, { $set: { subscriptionPlan } });
-      return res.status(200).json(subscriptionPlan);
-    } catch (err) {
-      return res.status(500).json({ message: 'Internal server error' });
+      res.json({ message: "Not all fields are provided" });
     }
   });
 
+  // Get User Plans for the Admins wallet section
+  app.get('/api/users/plan', function (req, res) {
+    User.find({ 'plan.plan': { $exists: true }}, { projection: { name: 1, surname: 1, photo: 1, credits: 1, plan: 1 }}).toArray(function (err, users) {
+      res.json(users)
+    });
+  });
+
   // Edit Current (authenticated) User
-  app.put('/api/user/current', middleware.isAuthorized, async (req, res) => {
-    const newUser = req.body;
-    const validation = validate(newUser, newEditUserSchema());
-    if (validation.error) {
-      return res.status(400).json({ message: validation.error });
-    }
-    const user1 = await req.user;
+  app.put('/api/user/current', middleware.isAuthorized, async function (req, res) {
+    var newUser = req.body;
+    var user1 = await req.user;
 
     editUser(parseInt(user1._id), newUser, res);
   });
 
-  app.put('/api/admin/user', middleware.isAdmin, async (req, res, next) => {
-    try {
-      const newUser = req.body;
-      const validation = validate(newUser, newEditUserAdminSchema());
-      if (validation.error) {
-        throw ErrorResponse.BadRequest(validation.error);
-      }
-  
-      editUser(parseInt(req.body.userId), newUser, res);
-    } catch (error) {
-      return next(error);
-    }
-  });
-
   // Edit specific User
   app.put('/api/user/:id', function (req, res) {
-    const id = parseInt(req.params.id);
-    const newUser = req.body;
-    const validation = validate(newUser, newEditUserSchema());
-    if (validation.error) {
-      return res.status(400).json({ message: validation.error });
-    }
+    var id = parseInt(req.params.id);
+    var newUser = req.body;
 
     editUser(id, newUser, res);
   });
@@ -201,8 +175,8 @@ module.exports = (app, validate) => {
     let newToken = req.body.newToken;
     let oldToken = req.body.oldToken;
     if(id){
-      let user = await User.findOne({ _id: id });
-      if(user && user.devices){
+      let user =  await User.findOne({ _id: id });
+      if(user){
         let foundDevices  = user.devices.filter(x => {
           if((typeof x === Object || typeof x == 'object') && x.type.toLowerCase() == 'android' && x.uid == uid) return true;
           else return false;
@@ -514,7 +488,9 @@ module.exports = (app, validate) => {
   });
 };
 
-function editUser(id, newUser, res) {
+
+
+function editUser(id, newUser, res){
   User.findOne({ _id: id }, function (err, user) {
     err && console.log(err);
 
@@ -534,10 +510,6 @@ function editUser(id, newUser, res) {
       if(newUser.currentAgency !== user.currentAgency && newUser.currentAgency) user.currentAgency = newUser.currentAgency;
       if(newUser.city !== user.city && newUser.city) user.city = newUser.city;
       if(newUser.instagramName !== user.instagramName && newUser.instagramName) user.instagramName = newUser.instagramName;
-      if(newUser.level !== user.level && user.level) user.level = newUser.level;
-      if(user.admin !== undefined) user.admin = newUser.admin;
-      if(newUser.driver !== undefined) user.driver = newUser.driver;
-      if(newUser.driverCaptain !== undefined) user.driverCaptain = newUser.driverCaptain;
       // Add a deviceID to the devices array of the User's document
       if(newUser.deviceID) {
         if(user.devices.indexOf(newUser.deviceID) === -1){
