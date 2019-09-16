@@ -20,8 +20,15 @@ const uploadDatabase = async (entities) => {
     return;
   }
   for (entity of Object.keys(entities)) {
-    const data = fs.readFileSync(`migrations/db/${entity}`, 'utf8');
-    await entities[entity].insertMany(JSON.parse(data));
+    try {
+      console.log(`inserting ${entity}`);
+      const data = JSON.parse(fs.readFileSync(`migrations/db/${entity}`, 'utf8'));
+      if (data) {
+        await entities[entity].insertMany(data);
+      }
+      console.log(`inserted ${entity}`);
+    } catch (err) {
+    }
   }
 };
 
