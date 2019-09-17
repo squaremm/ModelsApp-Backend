@@ -663,63 +663,63 @@ module.exports = (
       res.status(404).json({message : "invalid parameters"});
     }
   });
-  
-};
 
-validateDaysOff = (daysOffs) => {
-  let isValid = true;
-  let requiredProperties = ['date', 'isWholeDay', 'intervals']
-  daysOffs.forEach(dayOff => {
-    let objectKeys = Object.keys(dayOff);
-    requiredProperties.forEach(key => {
-      let foundKey =  objectKeys.find(x=> x == key);
-      if(foundKey){
-        if(foundKey == 'date'){
-          if(moment(dayOff.date).isValid()){
-            dayOff.date = moment(dayOff.date).format('DD-MM-YYYY');
-          }else{
-            isValid = false;
-          }
-        }
-        if(foundKey == 'isWholeDay' && typeof dayOff.isWholeDay !== "boolean"){
-            isValid = false;
-        }
-        if(foundKey == 'intervals'){
-          dayOff['intervals'].forEach(interval => {
-            let intervalObjectKeys = Object.keys(interval);
-            if(intervalObjectKeys.find(y => y == 'start') && intervalObjectKeys.find(y => y == 'end') 
-              && moment(`2019-01-01 ${interval.start.replace('.',':')}`).isValid() 
-              && moment(`2019-01-01 ${interval.end.replace('.',':')}`).isValid()
-            ){
-              interval.start = moment(`2019-01-01 ${interval.start.replace('.',':')}`).format('HH.mm');
-              interval.end = moment(`2019-01-01 ${interval.end.replace('.',':')}`).format('HH.mm');
+  validateDaysOff = (daysOffs) => {
+    let isValid = true;
+    let requiredProperties = ['date', 'isWholeDay', 'intervals']
+    daysOffs.forEach(dayOff => {
+      let objectKeys = Object.keys(dayOff);
+      requiredProperties.forEach(key => {
+        let foundKey =  objectKeys.find(x=> x == key);
+        if(foundKey){
+          if(foundKey == 'date'){
+            if(moment(dayOff.date).isValid()){
+              dayOff.date = moment(dayOff.date).format('DD-MM-YYYY');
             }else{
               isValid = false;
             }
-          });
+          }
+          if(foundKey == 'isWholeDay' && typeof dayOff.isWholeDay !== "boolean"){
+              isValid = false;
+          }
+          if(foundKey == 'intervals'){
+            dayOff['intervals'].forEach(interval => {
+              let intervalObjectKeys = Object.keys(interval);
+              if(intervalObjectKeys.find(y => y == 'start') && intervalObjectKeys.find(y => y == 'end') 
+                && moment(`2019-01-01 ${interval.start.replace('.',':')}`).isValid() 
+                && moment(`2019-01-01 ${interval.end.replace('.',':')}`).isValid()
+              ){
+                interval.start = moment(`2019-01-01 ${interval.start.replace('.',':')}`).format('HH.mm');
+                interval.end = moment(`2019-01-01 ${interval.end.replace('.',':')}`).format('HH.mm');
+              }else{
+                isValid = false;
+              }
+            });
+          }
+        }else{
+          isValid = false;
         }
-      }else{
-        isValid = false;
-      }
+      });
     });
-  });
-  return isValid;
-}
-async function getMoreData(places) {
-  var full = await Promise.all(places.map(async function (place) {
-    var interval = await Interval.findOne({ place: place._id });
-    var books = await Booking.find({ place: place._id, closed: false }).toArray();
-    var offers = await Offer.find({ place: place._id, closed: false }).toArray();
-
-    place.minOffer = null;
-    if(offers.length !== 0) {
-      place.minOffer = offers[0]['price'];
-    }
-
-    if(interval) place.intervals = interval.intervals;
-    place.bookings = books || [];
-    place.offers = offers || [];
-    return place;
-  }));
-  return full;
-}
+    return isValid;
+  }
+  async function getMoreData(places) {
+    var full = await Promise.all(places.map(async function (place) {
+      var interval = await Interval.findOne({ place: place._id });
+      var books = await Booking.find({ place: place._id, closed: false }).toArray();
+      var offers = await Offer.find({ place: place._id, closed: false }).toArray();
+  
+      place.minOffer = null;
+      if(offers.length !== 0) {
+        place.minOffer = offers[0]['price'];
+      }
+  
+      if(interval) place.intervals = interval.intervals;
+      place.bookings = books || [];
+      place.offers = offers || [];
+      return place;
+    }));
+    return full;
+  }
+  
+};
