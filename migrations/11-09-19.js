@@ -1,20 +1,7 @@
 const _ = require('lodash');
+const moment = require('moment');
 
-var db = require('../../config/connection');
-
-let User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
-db.getInstance(function (p_db) {
-  User = p_db.collection('users');
-  Place = p_db.collection('places');
-  Offer = p_db.collection('offers');
-  Counter = p_db.collection('counters');
-  Booking = p_db.collection('bookings');
-  OfferPost = p_db.collection('offerPosts');
-  Interval = p_db.collection('bookingIntervals');
-  SamplePost = p_db.collection('sampleposts');
-});
-
-module.exports = function(app) {
+module.exports = (app, User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost) => {
   app.get('/api/migrate', async (req, res) => {
     console.log('1');
     await Offer.updateMany({}, { $set: { isActive: true } });
@@ -35,28 +22,30 @@ module.exports = function(app) {
       await Booking.replaceOne({ _id: el._id }, { ...el, eventBooking: false });
     }));
     console.log('3');
-
+    
     a = await Booking.find({}).toArray();
 
     ps = await Promise.all(a.map(async (el) => {
-      const parts = el.creationDate.split("-");
-      el.creationDate = moment(new Date(parts[2], parts[1] - 1, parts[0])).add({days:1}).subtract({hours:22}).toISOString();
-      await Booking.replaceOne({ _id: el._id }, el);
+      try {
+        const parts = el.creationDate.split("-");
+        el.creationDate = moment(new Date(parts[2], parts[1] - 1, parts[0])).add({days:1}).subtract({hours:22}).toISOString();
+        await Booking.replaceOne({ _id: el._id }, el);
+      } catch (err) {}
     }));
     console.log('4');
 
     users = await User.find({}).toArray();
 
-    await Promise.all(users.map(async (user) => {
-      user.subscriptionPlan = { subscription: SUBSCRIPTION.unlimited };
-      await User.replaceOne({ _id: user._id }, newUser);
+    await Promise.all(users.map(async (newUser) => {
+      newUser.subscriptionPlan = { subscription: 'Unlimited' };
+      await User.replaceOne({ _id: newUser._id }, newUser);
     }));
     console.log('5');
 
     places = await Place.find({}).toArray();
 
     await Promise.all(places.map(async (place) => {
-      place.access = ACCESS.basic;
+      place.access = 'basic';
       await Place.replaceOne({ _id: place._id }, place);
     }));
     console.log('6');
