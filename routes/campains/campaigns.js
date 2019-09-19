@@ -8,11 +8,12 @@ let multiparty = require('multiparty');
 let middleware = require('../../config/authMiddleware');
 let crypto = require('crypto');
 
-let Campaign, UserCampaign, User;
+let Campaign, UserCampaign, User, CampaignInterval;
 db.getInstance(function (p_db) {
   User = p_db.collection('users');
   Campaign = p_db.collection('campaigns');
   UserCampaign = p_db.collection('userCampaigns');
+  CampaignInterval = p_db.collection("campaignIntervals");
 });
 
 module.exports = function(app) {
@@ -32,6 +33,7 @@ module.exports = function(app) {
         campaign.exampleImages = [];
         campaign.moodboardImages = [];
         campaign.winners = [];
+        campaign.acceptedUsers = [];
         await Campaign.insertOne(campaign);
       res.status(200).json(campaign);
       }else{
@@ -45,16 +47,6 @@ module.exports = function(app) {
   app.get('/api/admin/campaign', async (req, res) => {
     let campaigns = await Campaign.find({}).toArray();
     res.status(200).json(campaigns);
-  });
-
-  app.get('/api/campaign', middleware.isAuthorized, async (req, res) => {
-    let user = await req.user;
-    if(user){
-      let campaigns = await Campaign.find({}).toArray();
-      res.status(200).json(viewModels.toMobileViewModel(campaigns, user, false));
-    }else{
-      res.status(400).json({message : 'not authoirze'});
-    }
   });
   app.get('/api/campaign/bookings', middleware.isAuthorized, async (req,res) => {
     let user = await req.user;
@@ -84,7 +76,7 @@ module.exports = function(app) {
         let obj = {
           title : x.campaign.title,
           campaignId: x.campaign._id,
-          pickUpDate: x.slot.date ? `${x.slot.date} ${x.slot.startTime}` : null,
+          pickUpDate: x.slot && x.slot.date ? `${x.slot.date} ${x.slot.startTime}` : null,
           mainImage: x.campaign.mainImage,
           isGiftTaken: x.isGiftTaken,
           location: x.location
@@ -96,6 +88,7 @@ module.exports = function(app) {
       res.status(400).json({message: "user not found"});
     }
   });
+  
 
   app.get('/api/campaign/:id', middleware.isAuthorized, async (req, res) => {
     let user = await req.user;
@@ -372,11 +365,196 @@ app.post('/api/campaign/:id/images/reward/:position', async (req,res) => {
     }
 });
   
-  
+app.get('/api/admin/campaign/:id', async (req, res) => {
+  let id = parseInt(req.params.id);
+  if(id){
+    let campaign = await Campaign.findOne({_id: id});
+    res.status(200).json(campaign);
+  }else{
+    res.status(400).json({message : 'Invalid parameters'});
+  }
+});
+app.get('/api/admin/campaign/:id/participant', async (req, res) => {
+  let id = parseInt(req.params.id);
+  if(id){
+    let campaign = await Campaign.findOne({_id: id});
+    let userCampaigns = await UserCampaign
+    .aggregate([{
+              '$lookup': {
+                'from': 'users', 
+                'localField': 'user', 
+                'foreignField': '_id', 
+                'as': 'user'
+              }
+            }, {
+              '$unwind': {
+                'path': '$user'
+              }
+            }, 
+            {
+              '$match': {
+                'campaign': id
+              }
+            }]).toArray();
+    let returnArray = await Promise.all(userCampaigns.map(async x => {
+      let user = {
+        _id: x.user.id,
+        name: x.user.name,
+        surname: x.user.surname,
+        nationality: x.user.nationality,
+        currentAgency: x.user.currentAgency,
+        motherAgency: x.user.motherAgency,
+        instagramName: x.user.instagramName,
+        phone: x.user.phone,
+        email: x.user.email,
+        birthDate: x.user.birthDate,
+        images: x.images,
+        status: x.status,
+        isMissingPhotos: x.imageCount > x.images.length,
+        isWinner: campaign.winners.filter(xx => xx.user == x.user._id).length > 0,
+        statusDescription: await viewModels.getStatusDescription(x.status)
+      }
+      return user;
+    }));
+    res.status(200).json(returnArray);
+  }else{
+    res.status(400).json({message : 'Invalid parameters'});
+  }
+});
+app.get('/api/admin/campaign/:id/booking', async (req, res) => {
+  let id = parseInt(req.params.id);
+  if(id){
+    let campaign = await Campaign.findOne({_id: id});
+    let userCampaigns = await UserCampaign
+    .aggregate([{
+              '$lookup': {
+                'from': 'users', 
+                'localField': 'user', 
+                'foreignField': '_id', 
+                'as': 'user'
+              }
+            }, {
+              '$unwind': {
+                'path': '$user'
+              }
+            }, 
+            {
+              '$match': {
+                'campaign': id
+              }
+            }]).toArray();
+    let intervals = await CampaignInterval.find({campaign: campaign._id}).toArray();
+    let returnIntervals = intervals.map(interval => {
+       let returnObject = {
+         address: interval.address,
+         spotsCount: interval.intervals.length,
+         bookings: []
+       }
+       let filteredCampaigns = userCampaigns.filter(x=> x.location.address == interval.location.address);
+       returnObject.userCount = filteredCampaigns.length;
+       const result = [];
+       const map = new Map();
+       for (const item of filteredCampaigns) {
+           if(!map.has(item.slot.date)){
+               map.set(item.slot.date, true);    // set any value to Map
+               result.push({
+                   date: item.slot.date,
+                   day: item.slot.day
+               });
+           }
+       }
+       for (const item of result.sort((a,b) => moment(a.date).format('YYYYMMDD') - moment(b.date).format('YYYYMMDD'))) {
+         let bookingDate = {
+            date: item.date,
+            day: item.day
+         };
+         bookingDate.intervals = interval.intervals.filter(x=> x.day == bookingDate.day).map(x=> {
+           let singleInterval = {
+             range: `${x.start} - ${x.end}`,
+             users: filteredCampaigns.filter(xx => xx.slot.startTime == x.start && xx.slot.date == bookingDate.date)
+                .map(xx=>{
+                  let user= {
+                    mainImage: xx.user.mainImage,
+                    name: xx.user.name,
+                    surname: xx.user.surname,
+                  };
+                  return user;
+                }),
+             usersCount: filteredCampaigns.filter(xx => xx.slot.startTime == x.start && xx.slot.date == bookingDate.date).length
+           }
+          return singleInterval;
+         });
+        returnObject.bookings.push(bookingDate);
+       }
+       return returnObject;
+    })
+    res.status(200).json(returnIntervals);
+  }else{
+    res.status(400).json({message : 'Invalid parameters'});
+  }
+});
 
-  
-  
-  
+app.put('/api/admin/campaign/:id', async (req, res) => {
+  let id = parseInt(req.params.id);
+  let campaign = JSON.parse(JSON.stringify(req.body)); ;
+  let campaignToValidate = req.body;
+  if(id){
+    let dbCampaign = await Campaign.findOne({ _id: id });
+    if(dbCampaign){
+      let errors = campaignSchema.campaignSchema.validate(campaignToValidate);
+      if(errors.length == 0){
+        let rewardValidator = await validateRewards(campaign.rewards);
+        let taskValidator = await validateTasks(campaign.tasks)
+        if(rewardValidator.isValid && taskValidator.isValid){
+          
+          await Campaign.replaceOne({_id : id } , campaign);
+          campaign = await Campaign.findOne({ _id: id });
+          res.status(200).json(campaign);
+        }else{
+          res.status(400).json({message: rewardValidator.error + ' ' + taskValidator.error});
+        }
+      }else{
+        res.status(400).json(errors.map(x=>x.message));
+      }
+    }else{
+      res.status(400).json({message : 'Campaign not found'});
+    }
+  }else{
+    res.status(400).json({message : 'Invalid parameters'});
+  }
+});
+
+app.delete('/api/admin/campaign/:id', async (req, res) => {
+  let id = parseInt(req.params.id);
+  let confirm = req.query.confirm;
+  if(id){
+    let campaign = await Campaign.findOne({ _id: id });
+    if(campaign){
+      let users = campaign.users;
+      if(users.length > 0 && !confirm){
+        res.status(400).json({message : 'Campaign has some users to remove it please send query param ?confirm=true'});
+      }else{
+        await Campaign.deleteOne({_id: id});
+        res.status(200).json({message: "Campaign deleted"})
+      }
+    }else{
+      res.status(400).json({message : 'Campaign not found'});
+    }
+  }else{
+    res.status(400).json({message : 'Invalid parameters'});
+  }
+});
+
+
+app.get('/api/campaign', middleware.isAuthorized, async (req, res) => {
+  let user = await req.user;
+  if(user){
+    let campaigns = await Campaign.find({}).toArray();
+    res.status(200).json(viewModels.toMobileViewModel(campaigns, user, false));
+  }else{
+    res.status(400).json({message : 'not authoirze'});
+  }
+});
 
 validateTasks = async(tasks) => {
   let validateObject = {
