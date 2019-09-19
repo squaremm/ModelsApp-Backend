@@ -15,48 +15,56 @@ db.getInstance(function (p_db) {
 });
 
 module.exports = function(app) {
-/*
   app.get('/api/migrate', async (req, res) => {
+    console.log('1');
     await Offer.updateMany({}, { $set: { isActive: true } });
     await Offer.updateMany({}, { $set: { scopes: ['regular'] } });
 
     await Place.updateMany({ }, { $set: { allows: ['male', 'female']} });
     await Place.updateMany({ }, { $set: { city: 'Milan' } });
     await Place.updateMany({ }, { $set: { requirements: {} } });
+    console.log('2');
 
     await Offer.updateMany({}, { $set: { isActive: true } });
     await Offer.updateMany({}, { $set: { scopes: ['regular'] } });
 
-    const a = await Booking.find({}).toArray();
+    let a, ps, users, places;
+    a = await Booking.find({}).toArray();
 
-    const ps = await Promise.all(a.map(async (el) => {
+    ps = await Promise.all(a.map(async (el) => {
       await Booking.replaceOne({ _id: el._id }, { ...el, eventBooking: false });
     }));
-    res.send(await Offer.find({}).toArray());
+    console.log('3');
 
-    const a = await Booking.find({}).toArray();
+    a = await Booking.find({}).toArray();
 
-    const ps = await Promise.all(a.map(async (el) => {
+    ps = await Promise.all(a.map(async (el) => {
       const parts = el.creationDate.split("-");
       el.creationDate = moment(new Date(parts[2], parts[1] - 1, parts[0])).add({days:1}).subtract({hours:22}).toISOString();
       await Booking.replaceOne({ _id: el._id }, el);
     }));
+    console.log('4');
 
-    const users = await User.find({}).toArray();
+    users = await User.find({}).toArray();
 
     await Promise.all(users.map(async (user) => {
       user.subscriptionPlan = { subscription: SUBSCRIPTION.unlimited };
       await User.replaceOne({ _id: user._id }, newUser);
     }));
+    console.log('5');
 
-    const places = await Place.find({}).toArray();
+    places = await Place.find({}).toArray();
 
     await Promise.all(places.map(async (place) => {
       place.access = ACCESS.basic;
       await Place.replaceOne({ _id: place._id }, place);
     }));
+    console.log('6');
 
     await Booking.updateMany({date: '10-03-2019'}, {$set: {closed: false}});
+    console.log('7');
+
+    return res.send('done');
   });
 
   app.get('/api/revert-migrate', async (req, res) => {
@@ -80,5 +88,4 @@ module.exports = function(app) {
     await User.updateMany({}, { $unset: { subscription: '' }});
     await Place.updateMany({}, { $unset: { access: '' }});
   });
-  */
 }
