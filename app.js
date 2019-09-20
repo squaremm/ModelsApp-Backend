@@ -154,7 +154,7 @@ async function bootstrap() {
     newUserRepository(),
     newOfferRepository(),
     newValidator(),
-    User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost, entityHelper,
+    User, Place, Offer, Interval, Counter, Booking, OfferPost, SamplePost, entityHelper,
   );
   require('./routes/booking')(
     app,
