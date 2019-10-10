@@ -144,6 +144,13 @@ async function bootstrap() {
 
   addMiddlewares(app);
 
+  const cloudinary = require('cloudinary').v2
+  cloudinary.config({ 
+    cloud_name: config.cloudinaryName,
+    api_key: config.cloudinaryKey,
+    api_secret: config.cloudinarySecret
+  });
+
   require('./config/authJWT')(passport, User, Place);
   require('./config/authLocal')(passport, Place, Counter, User, Interval, entityHelper);
   require('./config/authInstagram')(passport, User, Counter);
