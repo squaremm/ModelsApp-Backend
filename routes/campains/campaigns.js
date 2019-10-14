@@ -1,23 +1,12 @@
-let db = require('../../config/connection');
 let campaignSchema = require('../../model/campaign/campaignSchema');
 let viewModels = require('../../model/campaign/campaignViewModel');
 let moment = require('moment');
-let entityHelper = require('../../lib/entityHelper');
 let imageUplader = require('../../lib/imageUplader');
 let multiparty = require('multiparty');
 let middleware = require('../../config/authMiddleware');
 let crypto = require('crypto');
 
-let Campaign, UserCampaign, User, CampaignInterval;
-db.getInstance(function (p_db) {
-  User = p_db.collection('users');
-  Campaign = p_db.collection('campaigns');
-  UserCampaign = p_db.collection('userCampaigns');
-  CampaignInterval = p_db.collection("campaignIntervals");
-});
-
-module.exports = function(app) {
-  
+module.exports = (app, User, Campaign, UserCampaign, CampaignInterval, getNewId) => {
   //create new campaing
   app.post('/api/admin/campaign', async (req, res) => {
     let campaign =  req.body;
@@ -26,16 +15,24 @@ module.exports = function(app) {
       let rewardValidator = await validateRewards(campaign.rewards);
       let taskValidator = await validateTasks(campaign.tasks)
       if(rewardValidator.isValid && taskValidator.isValid){
-        campaign._id = await entityHelper.getNewId('campaignId');
+        campaign._id = await getNewId('campaignId');
         campaign.mainImage = null;
-        campaign.qrCode = crypto.randomBytes(20).toString('hex'),
+        campaign.qrCode = crypto.randomBytes(20).toString('hex');
         campaign.users = [];
         campaign.exampleImages = [];
         campaign.moodboardImages = [];
         campaign.winners = [];
         campaign.acceptedUsers = [];
         await Campaign.insertOne(campaign);
-      res.status(200).json(campaign);
+        const users = await User.find({}, { projection: { devices: 1 }}).toArray();
+        const allDevices = [];
+        for (const user of users) {
+          if (user.devices) {
+            allDevices.push(...user.devices);
+          }
+        }
+        await pushProvider.sendNewCampaignNotification(allDevices, campaign);
+        res.status(200).json(campaign);
       }else{
         res.status(400).json({message: rewardValidator.error + ' ' + taskValidator.error});
       }
@@ -88,7 +85,6 @@ module.exports = function(app) {
       res.status(400).json({message: "user not found"});
     }
   });
-  
 
   app.get('/api/campaign/:id', middleware.isAuthorized, async (req, res) => {
     let user = await req.user;

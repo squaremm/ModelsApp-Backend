@@ -1,18 +1,6 @@
-var db = require('../config/connection');
-var moment = require('moment');
+const moment = require('moment');
 
-var User, Place, Offer, Counter, Booking, OfferPost, Interval;
-db.getInstance(function (p_db) {
-  User = p_db.collection('users');
-  Place = p_db.collection('places');
-  Offer = p_db.collection('offers');
-  Counter = p_db.collection('counters');
-  Booking = p_db.collection('bookings');
-  OfferPost = p_db.collection('offerPosts');
-  Interval = p_db.collection('bookingIntervals');
-});
-
-module.exports = function(app) {
+module.exports = (app, User, Place, Offer, Counter, Booking, OfferPost, Interval) => {
 
   //// ADMINS
   //// SECTION
@@ -188,25 +176,6 @@ module.exports = function(app) {
     } else {
       res.json([]);
     }
-  });
-
-  // Get the statistics for the Overview section in Admins Page
-  app.get('/api/statistics/overview', async function (req, res) {
-
-    var markers = await Place.find({}, {projection: {location: 1, name: 1}}).toArray();
-    var postsCount = await OfferPost.countDocuments();
-
-    var plansCount = {
-      Basic: 0,
-      Growth: 0,
-      Energy: 0
-    };
-    var plans = await User.find({'plan.plan': {$exists: true}}, {projection: {plan: 1}}).toArray();
-    plans.forEach(function (plan) {
-      if (plan.plan.plan in plansCount) plansCount[plan.plan.plan]++;
-    });
-
-    res.json({markers: markers, postsCount: postsCount, plansCount: plansCount});
   });
 
   // Get the data for the chart on the Admins page

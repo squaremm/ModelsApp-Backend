@@ -1,17 +1,12 @@
-var db = require('./connection');
 var bcrypt = require('bcrypt-nodejs');
-var entityHelper = require('../lib/entityHelper');
 var token = require('../config/generateToken');
 var crypto = require('crypto');
 var sendGrid = require('../lib/sendGrid');
+const { SUBSCRIPTION } = require('./constant');
 
-var User;
-db.getInstance(function(p_db) {
-  User = p_db.collection('users');
-});
 var exports = module.exports = {};
 
-exports.createUser = async (req, res, next) => {
+exports.newCreateUser = (getNewId, User) => async (req, res, next) => {
     var email = req.body.email;
     var password = req.body.password;
     var confirmPassword = req.body.confirmPassword;
@@ -22,7 +17,7 @@ exports.createUser = async (req, res, next) => {
         var user = await User.findOne({ email:  email});
         if(!user){
             var newUser = {
-                _id : await entityHelper.getNewId('userid'),
+                _id : await getNewId('userid'),
                 email : email,
                 password : bcrypt.hashSync(password, bcrypt.genSaltSync(8), null),
                 photo: null,
@@ -32,7 +27,6 @@ exports.createUser = async (req, res, next) => {
                 referredFrom : null,
                 credits : 200,
                 devices : [],
-                plan : {},
                 isAcceptationPending : true,
                 isEmailAcceptationPending : true,
                 temporaryPassword : null,
@@ -41,7 +35,11 @@ exports.createUser = async (req, res, next) => {
                 images: [],
                 mainImage: null,
                 isPaymentRequired: false,
-                registerStep: 0
+                registerStep: 0,
+                level: 1,
+                action_counters: {},
+                action_total_counter: 0,
+                subscriptionPlan: { subscription: SUBSCRIPTION.trial },
             };
 
             newUser.loginTypes.push('email');
@@ -87,7 +85,7 @@ exports.createUser = async (req, res, next) => {
     }
 };
 
-exports.loginUser = async (req, res, next) => {
+exports.newLoginUser = (User) => async (req, res, next) => {
     var email = req.body.email;
     var password = req.body.password;
     const emailRegexp = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
@@ -97,7 +95,7 @@ exports.loginUser = async (req, res, next) => {
         if(user){
             var isTempPassword = Boolean(user.temporaryPassword && bcrypt.compareSync(password, user.temporaryPassword)); //user has temporary password so he forgot his current one
             if(user && user.password && (bcrypt.compareSync(password, user.password) 
-                || isTempPassword )){ 
+                || isTempPassword )){
                 return res.status(200).json({ 
                     isChangePasswordRequired: isTempPassword,
                     token : token.generateAccessToken(user._id)

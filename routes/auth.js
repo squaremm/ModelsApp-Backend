@@ -1,16 +1,8 @@
-
-const db = require('../config/connection');
 const passport = require('passport');
 const token = require('../config/generateToken');
 const isAuthorized = require('../config/authMiddleware').isAuthorized;
 const authEmail = require('../config/authEmail');
 const middleware = require('../config/authMiddleware');
-
-var User;
-db.getInstance(function (p_db) {
-  User = p_db.collection('users');
-  Profile = p_db.collection('user_profile');
-});
 
 function generateUserToken(req, res) {
   var accessToken = token.generateAccessToken(req.user._id);
@@ -21,7 +13,7 @@ function generateUserToken(req, res) {
   }
 }
 
-module.exports = function (app) {
+module.exports = (app, User, Profile, getNewId) => {
 
   // Instagram authentication
   app.get(
@@ -109,9 +101,9 @@ module.exports = function (app) {
         } else {
           var accessToken = token.generateAccessToken(user._id);
           if (!accessToken) {
-            res.json({ message: "Registration failed", token: null });
+            res.json({ message: "Sign in failed", token: null });
           } else {
-            res.json({ message: "Registration completed", token: accessToken, _id : user._id  });
+            res.json({ message: "Signed in", token: accessToken, _id : user._id  });
           }
         }
       })(req, res, next);
@@ -138,20 +130,21 @@ module.exports = function (app) {
       })(req, res, next);
   });
   
-   app.post('/api/auth/user/signin', authEmail.createUser);
-   app.post('/api/auth/user/login', authEmail.loginUser);
-   app.get('/api/auth/token/isActive', async (req, res) => {
-    try {
-     await new Promise((resolve, reject) => {
-       middleware.isAuthorized(req, {}, (err) => {
-         if (err) reject(err)
-         resolve();
-       });
-      });
+   app.post('/api/auth/user/signin', authEmail.newCreateUser(getNewId, User));
+   app.post('/api/auth/user/login', authEmail.newLoginUser(User));
 
-      return res.status(200).json({ isAuthorized: true });
-    } catch (error) {
-      return res.status(403).json({ isAuthorized: false });
-    }
-  });
+   app.get('/api/auth/token/isActive', async (req, res) => {
+     try {
+      await new Promise((resolve, reject) => {
+        middleware.isAuthorized(req, {}, (err) => {
+          if (err) reject(err)
+          resolve();
+        });
+       });
+
+       return res.status(200).json({ isAuthorized: true });
+     } catch (error) {
+       return res.status(403).json({ isAuthorized: false });
+     }
+   });
 };
