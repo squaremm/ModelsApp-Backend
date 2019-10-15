@@ -1,3 +1,4 @@
+var db = require('../config/connection');
 var crypto = require('crypto');
 var apn = require('apn');
 var config =  require('../config/index');
@@ -22,7 +23,17 @@ async function sendIos(deviceId, user) {
   }
 }
 
-module.exports = (app, User, Place, Offer, Counter, Booking, OfferPost) => {
+var User, Place, Offer, Counter, Booking, OfferPost;
+db.getInstance(function (p_db) {
+  User = p_db.collection('users');
+  Place = p_db.collection('places');
+  Offer = p_db.collection('offers');
+  Counter = p_db.collection('counters');
+  Booking = p_db.collection('bookings');
+  OfferPost = p_db.collection('offerPosts');
+});
+
+module.exports = function(app) {
 
   app.get('/api/push/:device', function (req, res) {
     sendIos(req.params.device, 'Vova Putya');

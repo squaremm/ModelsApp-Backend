@@ -1,9 +1,18 @@
+var db = require('../../config/connection');
 let viewModels = require('../../model/campaign/campaignViewModel');
 let moment = require('moment');
+let entityHelper = require('../../lib/entityHelper');
 let imageUplader = require('../../lib/imageUplader');
 let multiparty = require('multiparty');
 let middleware = require('../../config/authMiddleware');
 let pushProvider = require('../../lib/pushProvider');
+
+let Campaign, UserCampaign, User;
+db.getInstance(function (p_db) {
+  Campaign = p_db.collection('campaigns');
+  UserCampaign = p_db.collection('userCampaigns');
+  User = p_db.collection('users');
+});
 
 //userCampaig statuses
 //0 - waiting for confirmation
@@ -14,7 +23,7 @@ let pushProvider = require('../../lib/pushProvider');
 //4 - photo approved
 //-2 - photo rejected
 
-module.exports = (app, Campaign, UserCampaign, User, getNewId) => {
+module.exports = function(app) {
   
     app.post('/api/campaign', middleware.isAuthorized,  async (req, res) => {
       let qrCode = req.body.qrCode;
@@ -45,7 +54,6 @@ module.exports = (app, Campaign, UserCampaign, User, getNewId) => {
         res.status(404).json({message : "invalid parameters"});
       }
     });
-
     //create new user campaing
     app.post('/api/campaign/:id/join', middleware.isAuthorized,  async (req, res) => {
         let user = await req.user;
@@ -60,7 +68,7 @@ module.exports = (app, Campaign, UserCampaign, User, getNewId) => {
                         imageCount = campaign.tasks.find(x => x.type == 'photo').count;
                     }
                     let userCampaign = {
-                        _id: await getNewId('userCampaignId'),
+                        _id: await entityHelper.getNewId('userCampaignId'),
                         user: user._id,
                         campaign: campaign._id,
                         isAccepted: false,
@@ -142,60 +150,50 @@ module.exports = (app, Campaign, UserCampaign, User, getNewId) => {
         res.status(404).json({message : "invalid parameters"});
       }
     });
-
-    function parseForm(req) {
-      const form = new multiparty.Form();
-      return new Promise((resolve, reject) => {
-        form.parse(req, async (err, fields, files) => {
-          if (err) {
-            reject(err);
+    app.post('/api/campaign/:id/images', middleware.isAuthorized,  async (req,res) => {
+      var id = parseInt(req.params.id);
+      let user = await req.user;
+      if(id && user){
+        var userCampaign = await UserCampaign.findOne({ campaign : id, user: user._id });
+        if(userCampaign){
+          if(moment().isBefore(moment(userCampaign.uploadPicturesTo))){
+            if(userCampaign.isGiftTaken && (userCampaign.status == 1 || userCampaign.status == -2)){
+              var form = new multiparty.Form();
+              form.parse(req, async function (err, fields, files) {
+                if(files){
+                  files = files.images;
+                  var addedImages = [];
+                  for (file of files) {
+                    userCampaign = await UserCampaign.findOne({ campaign : id, user: user._id });
+      
+                    if(userCampaign.images.length < userCampaign.imageCount){
+                      await imageUplader.uploadImage(file.path, 'users', user._id)
+                      .then(async (newImage) =>{
+                        await UserCampaign.findOneAndUpdate({ campaign : id, user: user._id }, { $push: { images: newImage } })
+                        addedImages.push(newImage);
+                      })
+                      .catch((err) => {
+                        console.log(err);
+                      });
+                    }
+                  }
+                  res.status(200).json({message: "ok", images: addedImages});
+                }else{
+                  res.status(400).json({message:  'no files added'});
+                }
+              });
+            }else{
+              res.status(400).json({message : "invalid status" });
+            }
+          }else{
+            res.status(400).json({message : "Time to upload pictures has expired" });
           }
-          resolve({ fields, files });
-        });
-      });
-    }
-
-    app.post('/api/campaign/:id/images', middleware.isAuthorized, async (req, res) => {
-      const id = parseInt(req.params.id);
-      const user = await req.user;
-      if (!id || !user) {
-        return res.status(404).json({ message : 'One or more parameters is missing' });
+      }else{
+        res.status(404).json({message : "UserCampaign not found" });
       }
-
-      let userCampaign = await UserCampaign.findOne({ campaign : id, user: user._id });
-      if (!userCampaign) {
-        return res.status(404).json({ message: 'UserCampaign not found' });
-      }
-
-      let formParsed;
-      try {
-        formParsed = await parseForm(req);
-      } catch (error) {
-        return res.status(500).json({ message: 'Internal server error' });
-      }
-
-      let { files } = formParsed;
-      if (!files) {
-        return res.status(400).json({ message: 'No files added' });
-      }
-
-      files = files.images;
-      const addedImages = [];
-      for (file of files) {
-        userCampaign = await UserCampaign.findOne({ campaign : id, user: user._id });
-
-        if (userCampaign.images.length < userCampaign.imageCount) {
-          try {
-            const newImage = await imageUplader.uploadImage(file.path, 'users', user._id);
-            await UserCampaign.findOneAndUpdate({ campaign : id, user: user._id }, { $push: { images: newImage } });
-            addedImages.push(newImage);
-          } catch (err) {
-            console.error(err);
-          }
+      }else{
+        res.status(404).json({message : "invalid parameters"});
         }
-      }
-
-      return res.status(200).json({ message: 'ok', images: addedImages });
     });
 
 

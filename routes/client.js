@@ -1,7 +1,29 @@
-const middleware = require('../config/authMiddleware');
-const moment = require('moment');
+var db = require('../config/connection');
+var middleware = require('../config/authMiddleware');
+var moment = require('moment');
 
-module.exports = (app, User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost) => {
+var User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost;
+db.getInstance(function (p_db) {
+  User = p_db.collection('users');
+  Place = p_db.collection('places');
+  Offer = p_db.collection('offers');
+  Counter = p_db.collection('counters');
+  Booking = p_db.collection('bookings');
+  OfferPost = p_db.collection('offerPosts');
+  Interval = p_db.collection('bookingIntervals');
+  SamplePost = p_db.collection('sampleposts');
+});
+
+module.exports = function(app) {
+
+  // app.get('/api/mutate', function (req, res) {
+  //   Booking.updateMany({date: '10-03-2019'}, {$set: {closed: false}});
+  //   res.send('mutated');
+  // });
+
+  // app.get('/api/test', function (req, res) {
+  //   res.send(bcrypt.hashSync("12345678", bcrypt.genSaltSync(8), null));
+  // });
 
   // Edit Place
   app.put('/api/client', middleware.isClient, function (req, res) {

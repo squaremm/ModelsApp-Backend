@@ -1,13 +1,11 @@
-const passport = require('passport');
-
-const ErrorResponse = require('./../core/errorResponse');
+var passport = require('passport');
 
 module.exports = {
   isAuthorized: function (req, res, next) {
     return passport.authenticate('jwt', { session: false }, function (err, user) {
-      if (err) return next(ErrorResponse.Internal());
+      if (err) return next(err);
       if (!user){
-        return next(ErrorResponse.Unauthorized());
+        res.status(403).json({ message: "Not authenticated" });
       } else {
         req.user = user;
         next();
@@ -17,9 +15,9 @@ module.exports = {
 
   isClient: function(req, res, next) {
     return passport.authenticate('jwt-client', { session: false }, function (err, client) {
-      if (err) return next(ErrorResponse.Internal());
+      if (err) return next(err);
       if (!client){
-        return next(ErrorResponse.Unauthorized());
+        res.json({ message: "Not a client" });
       } else {
         req.user = client;
         next();
@@ -27,50 +25,18 @@ module.exports = {
     })(req, res, next);
   },
 
-  isDriver: (req, res, next) => {
-    return passport.authenticate('jwt', { session: false }, (err, user) => {
-      if (err) return next(ErrorResponse.Internal());
-      try {
-        if (!user || !user.driver) {
-          throw ErrorResponse.Unauthorized();
-        }
-        req.user = user;
-        return next();
-      } catch (e) {
-        return next(e);
-      }
-    })(req, res, next);
-  },
-
-  isDriverCaptain: (req, res, next) => {
-    return passport.authenticate('jwt', { session: false }, (err, user) => {
-      if (err) {
-        throw ErrorResponse.Internal();
-      }
-      try {
-        if (!user || !user.driverCaptain) {
-          throw ErrorResponse.Unauthorized();
-        }
-        req.user = user;
-        return next();
-      } catch (e) {
-        return next(e);
-      }
-    })(req, res, next);
-  },
-
   isAdmin: function (req, res, next) {
     return passport.authenticate('jwt', { session: false }, async function (err, user) {
-      if (err) return next(ErrorResponse.Internal());
+      if (err) return next(err);
       user = await user;
       if (!user){
-        return next(ErrorResponse.Unauthorized());
+        res.json({ message: "Not authenticated" });
       } else {
         if(user.admin === true){
           req.user = user;
           next();
         } else {
-          return next(ErrorResponse.Unauthorized());
+          res.json({ isAdmin: false });
         }
       }
     })(req, res, next);

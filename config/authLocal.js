@@ -1,17 +1,28 @@
 var Strategy = require('passport-local').Strategy;
+var db = require('./connection');
 var bcrypt = require('bcrypt-nodejs');
 var moment = require('moment');
 var pushProvider = require('../lib/pushProvider');
-const { SUBSCRIPTION } = require('./constant');
+var entityHelper = require('../lib/entityHelper');
 
-module.exports = (passport, Place, Counter, User, Interval, getNewId) => {
+var Counter, Place;
+db.getInstance(function (p_db) {
+  Place = p_db.collection('places');
+  Counter = p_db.collection('counters');
+  User = p_db.collection('user');
+  Interval = p_db.collection('bookingIntervals');
+});
+
+module.exports = function (passport) {
   passport.use('local-signup', new Strategy({
     usernameField: 'email',
     passwordField: 'password',
     passReqToCallback: true
   },
     function (req, email, password, done) {
-      const body = req.body;
+      console.log(req.body)
+
+      var body = req.body;
 
       Place.findOne({ "client.email": body.email }, function (err, user) {
         if (err) return done(err);
@@ -62,11 +73,11 @@ module.exports = (passport, Place, Counter, User, Interval, getNewId) => {
                     mainImage: null,
                     instapage: null,
                     daysOffs: [],
-                    isActive: true,
-                    requirements: [],
+                    isActive: true
                   };
+                  console.log(newPlace)
                   Place.insertOne(newPlace);
-                  getNewId('intervalsid').then((id) => {
+                  entityHelper.getNewId('intervalsid').then((id) => {
                     let interval = {
                       _id: id,
                       place: seq.value.seq,
@@ -104,22 +115,19 @@ module.exports = (passport, Place, Counter, User, Interval, getNewId) => {
   },
     function (req, email, password, done) {
       var body = req.body;
-      Place.findOne({ 'client.email': body.email }, function (err, place) {
+      Place.findOne({ 'client.email': body.email }, function (err, user) {
         if (err) return done(err);
-        if (!place) {
+        if (user) {
+          if (bcrypt.compareSync(body.password, user.client.password)) {
+            return done(null, user);
+          } else {
+            req.authMessage = "Wrong password";
+            return done(null, false);
+          }
+        } else {
           req.authMessage = "No such user with this email";
           return done(null, false);
         }
-        if (bcrypt.compareSync(body.password, place.client.password)) {
-          return done(null, place);
-        }
-
-        if (bcrypt.compareSync(body.password, place.client.temporaryPassword)) {
-          return done(null, place);
-        }
-
-        req.authMessage = "Wrong password";
-        return done(null, false);
       });
     })
   )
@@ -140,7 +148,7 @@ module.exports = (passport, Place, Counter, User, Interval, getNewId) => {
         if (body.password === body.confirmPassword) {
           if (body.birthdate && body.nationality && body.instagram_account && body.phone
             && body.firstName && body.LastName && body.sex) {
-            const user = {
+            let user = {
               email: body.email,
               password: bcrypt.hashSync(body.password, bcrypt.genSaltSync(8), null),
               first_name: body.firstName,
@@ -152,13 +160,10 @@ module.exports = (passport, Place, Counter, User, Interval, getNewId) => {
               phone: body.phone,
               mother_agency: body.mother_agency,
               current_agency: body.current_agency,
-              invitation_code: body.invitation_code,
-              level: 1,
-              action_counters: {},
-              action_total_counter: 0,
-              subscriptionPlan: { subscription: SUBSCRIPTION.trial },
+              invitation_code: body.invitation_code
             }
             User.insertOne(user)
+            console.log('user is ',user);
             return done(null, user);
           }
           else {

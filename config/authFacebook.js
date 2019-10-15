@@ -1,7 +1,13 @@
 var FacebookStrategy = require('passport-facebook').Strategy;
 var config = require('./index');
+var db = require('./connection');
 
-module.exports = (passport, User) => {
+var User;
+db.getInstance(function(p_db) {
+  User = p_db.collection('users');
+});
+
+module.exports = function(passport) {
 
   // Facebook connecting to account, only if the user is authenticated
   passport.use(new FacebookStrategy({

@@ -1,4 +1,13 @@
-module.exports = (app, Place, SamplePosts, getNewId) => {
+var db = require('../config/connection');
+var entityHelper = require('../lib/entityHelper');
+
+var SamplePosts, Place;
+db.getInstance(function (p_db) {
+    Place = p_db.collection('places');
+    SamplePosts = p_db.collection('sampleposts');
+});
+
+module.exports = function(app) {
     //getListOfSamplePosts
     app.get('/api/samplePosts', async (req,res) => {
        await SamplePosts.find({ }).toArray( async (err, list) => {
@@ -34,7 +43,7 @@ module.exports = (app, Place, SamplePosts, getNewId) => {
             let dbPlace = await Place.findOne({ _id : place });
             if(dbPlace){
                 let newSamplePost = {
-                    _id: await getNewId('samplepostid'),
+                    _id: await entityHelper.getNewId('samplepostid'),
                     place:  place,
                     feedback : feedback
                 };
