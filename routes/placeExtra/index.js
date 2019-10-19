@@ -1,4 +1,5 @@
 const newPostSchema = require('./schema');
+const deleteSchema = require('./schema/delete');
 const middleware = require('./../../config/authMiddleware');
 
 module.exports = (app, placeExtraRepository, placeTypeRepository, validate) => {
@@ -32,6 +33,23 @@ module.exports = (app, placeExtraRepository, placeTypeRepository, validate) => {
     }
 
     return res.status(200).send(result);
+  });
+
+  app.delete('/api/place-extra', middleware.isAdmin, async (req, res, next) => {
+    try {
+      const validation = validate(req.body, deleteSchema);
+      if (validation.error) {
+        return res.status(400).json({ message: validation.error });
+      }
+
+      const { id } = req.body;
+
+      await placeExtraRepository.deleteOne(id);
+
+      return res.status(200).json({ message: "ok" });
+    } catch (error) {
+      return next(error);
+    }
   });
 };
 

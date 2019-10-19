@@ -67,6 +67,11 @@ const newPlaceExtraRepository = (model) => ({
     const expressions = names.map(name => ({ name }));
     return model.find({ $or: expressions }).toArray();
   },
+
+  deleteOne: (id) => {
+    const oid = getObjectId(id);
+    return model.deleteOne({ _id: oid });
+  }
 });
 
 module.exports = newPlaceExtraRepository;
