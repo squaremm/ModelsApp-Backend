@@ -14,7 +14,7 @@ module.exports = (app, placeExtraRepository, placeTypeRepository, validate) => {
     let result;
 
     try {
-      result = await placeExtraRepository.updateOrCreate(type, name, image);
+      result = await placeExtraRepository.updateOrCreate({type, name, image});
     } catch (error) {
       return res.status(500).json({ message: 'Something went wrong' });
     }
