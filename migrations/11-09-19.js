@@ -74,6 +74,9 @@ module.exports = (app, User, Place, Offer, Counter, Booking, OfferPost, Interval
     }));
     console.log('19');
 
+    await User.updateMany({}, { $set: { level: 1 }});
+    console.log('20');
+
     return res.send('done');
   });
 
