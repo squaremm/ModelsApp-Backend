@@ -612,7 +612,6 @@ module.exports = (
       if(!user) {
         res.json({ message: "No such user" });
       } else {
-        
         if(newUser.registerStep !== user.registerStep && newUser.registerStep) user.registerStep = newUser.registerStep;
         if(newUser.name !== user.name && newUser.name) user.name = newUser.name;
         if(newUser.surname !== user.surname && newUser.surname) user.surname = newUser.surname;
@@ -625,7 +624,7 @@ module.exports = (
         if(newUser.currentAgency !== user.currentAgency && newUser.currentAgency) user.currentAgency = newUser.currentAgency;
         if(newUser.city !== user.city && newUser.city) user.city = newUser.city;
         if(newUser.instagramName !== user.instagramName && newUser.instagramName) user.instagramName = newUser.instagramName;
-        if(newUser.level !== user.level && user.level) user.level = newUser.level;
+        if(newUser.level !== user.level && newUser.level) user.level = newUser.level;
         if(user.admin !== undefined) user.admin = newUser.admin;
         if(newUser.driver !== undefined) user.driver = newUser.driver;
         if(newUser.driverCaptain !== undefined) user.driverCaptain = newUser.driverCaptain;
