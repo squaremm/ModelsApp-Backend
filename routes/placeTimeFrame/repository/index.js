@@ -54,6 +54,17 @@ const newPlaceExtraRepository = (model) => ({
         });
       });
   },
+
+  findOne: ({ id, type, name }, options) => {
+    const oid = getObjectId(id);
+    return model.findOne({
+      ...(oid && { _id: oid }),
+      ...(type && { type }),
+      ...(name && { name }),
+      },
+      options,
+    );
+  },
 });
 
 module.exports = newPlaceExtraRepository;

@@ -106,7 +106,7 @@ module.exports = (
 
       const { timeFrames } = req.body;
       const validTimeFrames = (await Promise.all((req.body.type || [])
-        .map((type) => placeTimeFramesRepository.find({ type }))))
+        .map((type) => placeTimeFramesRepository.findOne({ type }))))
         .map(placeTimeFrame => placeTimeFrame.name);
 
       if (timeFrames && !timeFramesValid(validTimeFrames, timeFrames)) {
@@ -235,7 +235,7 @@ module.exports = (
       if (newPlace.allows) place.allows = newPlace.allows;
       if (newPlace.timeFrames) {
         const validTimeFrames = (await Promise.all((req.body.type || [])
-          .map((type) => placeTimeFramesRepository.find({ type }))))
+          .map((type) => placeTimeFramesRepository.findOne({ type }))))
           .map(placeTimeFrame => placeTimeFrame.name);
         if (!timeFramesValid(validTimeFrames, newPlace.timeFrames)) {
           return res.status(400)

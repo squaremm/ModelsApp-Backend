@@ -29,7 +29,7 @@ module.exports = (passport, Place, Counter, User, Interval, getNewId) => {
                   var newPlace = {
                     _id: seq.value.seq,
                     name: body.name,
-                    type: body.type,
+                    type: body.type || [],
                     address: body.address,
                     description: "",
                     client: {

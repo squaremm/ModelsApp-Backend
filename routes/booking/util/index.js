@@ -215,7 +215,7 @@ class BookingUtil {
     let usersBookingsSamePlaceDate = await this.Booking.countDocuments({ user: user._id, place: place._id, date: {$eq: fullDate.format('DD-MM-YYYY')}  });
 
     if(usersBookingsSamePlaceDate == 0){
-      if(place.type.map(t => t.toLowerCase()).includes('gym') || (usersBookingsWeek < 10 && usersBookingsWeekPlace < 3)) {
+      if((place.type || []).map(t => t.toLowerCase()).includes('gym') || (usersBookingsWeek < 10 && usersBookingsWeekPlace < 3)) {
         let minOfferPrice =  Math.min(...offers.map(x => x.price)) / 2;
         if(minOfferPrice <= user.credits){
           validation.isValid = true;
