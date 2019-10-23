@@ -78,7 +78,7 @@ module.exports = (app, User, Place, Offer, Counter, Booking, OfferPost, Interval
     await User.updateMany({}, { $set: { level: 1 }});
     console.log('20');
 
-    places = await Place.find({});
+    places = await Place.find({}).toArray();
     for (const place of places) {
       place.type = [...([place.type] || [])];
       await Place.replaceOne({ _id: place._id }, place);
@@ -147,7 +147,7 @@ module.exports = (app, User, Place, Offer, Counter, Booking, OfferPost, Interval
     }));
     console.log('19');
 
-    places = await Place.find({});
+    places = await Place.find({}).toArray();
     for (const place of places) {
       place.type = place.type[0];
       await Place.replaceOne({ _id: place._id }, place);
