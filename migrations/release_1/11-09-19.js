@@ -1,5 +1,6 @@
 const _ = require('lodash');
 const moment = require('moment');
+const migratePlaces = require('./migratePlaces');
 
 module.exports = (app, User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost) => {
   app.get('/api/migrate', async (req, res) => {
@@ -76,6 +77,10 @@ module.exports = (app, User, Place, Offer, Counter, Booking, OfferPost, Interval
 
     await User.updateMany({}, { $set: { level: 1 }});
     console.log('20');
+
+    console.log('Migrating places...');
+    await migratePlaces(Place);
+    console.log('Migrations finished');
 
     return res.send('done');
   });

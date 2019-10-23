@@ -13,7 +13,7 @@ const newSchema = (validTypes, validExtras, validCities, requirements) => Joi.ob
   phone: Joi.string().strict(),
   instapage: Joi.string().strict(),
   name: Joi.string().strict(),
-  type: Joi.string().strict().valid(validTypes),
+  type: Joi.array().items(Joi.string().strict().valid(validTypes)),
   address: Joi.string().strict(),
   photo: Joi.string().strict(),
   photos: Joi.array().items(Joi.string()),

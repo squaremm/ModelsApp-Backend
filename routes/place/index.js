@@ -105,16 +105,18 @@ module.exports = (
       if (validation.error) throw ErrorResponse.BadRequest(validation.error);
 
       const { timeFrames } = req.body;
-      const validTimeFrames = (await placeTimeFramesRepository.find({ type: req.body.type }))
+      const validTimeFrames = (await Promise.all((req.body.type || [])
+        .map((type) => placeTimeFramesRepository.find({ type }))))
         .map(placeTimeFrame => placeTimeFrame.name);
+
       if (timeFrames && !timeFramesValid(validTimeFrames, timeFrames)) {
         throw ErrorResponse
-          .BadRequest(`Invalid time frames! Valid values for type ${req.body.type} are ${validTimeFrames || '[]'}`);
+          .BadRequest(`Invalid time frames! Valid values for types ${req.body.type} are ${validTimeFrames || '[]'}`);
       }
 
       const place = {
         name: req.body.name,
-        type: req.body.type,
+        type: req.body.type || [],
         address: req.body.address,
         photos: req.body.photos,
         location: {
@@ -232,7 +234,8 @@ module.exports = (
       if (newPlace.access) place.access = newPlace.access;
       if (newPlace.allows) place.allows = newPlace.allows;
       if (newPlace.timeFrames) {
-        const validTimeFrames = (await placeTimeFramesRepository.find({ type: newPlace.type || place.type }))
+        const validTimeFrames = (await Promise.all((req.body.type || [])
+          .map((type) => placeTimeFramesRepository.find({ type }))))
           .map(placeTimeFrame => placeTimeFrame.name);
         if (!timeFramesValid(validTimeFrames, newPlace.timeFrames)) {
           return res.status(400)

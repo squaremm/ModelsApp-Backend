@@ -8,8 +8,9 @@ const dayTimeFrame = Joi.array().items(Joi.string());
 
 const newSchema = (validTypes, validExtras, validCities, requirements) => Joi.object().keys({
   name: Joi.string().strict().required(),
-  type: Joi.string().strict().required()
-    .valid(validTypes),
+  type: Joi.array().items(
+    Joi.string().strict().valid(validTypes),
+  ),
   address: Joi.string().strict().required(),
   photos: Joi.array().items(Joi.string()).required(),
   coordinates: Joi.array().min(2).items(Joi.number()).required(),
