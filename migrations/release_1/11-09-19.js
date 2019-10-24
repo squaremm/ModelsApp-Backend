@@ -85,6 +85,8 @@ module.exports = (app, User, Place, Offer, Counter, Booking, OfferPost, Interval
     }
     console.log('21');
 
+    await Place.updateMany({}, { $set: { requireSpecifyOffer: false }});
+
     console.log('Migrating places...');
     await migratePlaces(Place);
     console.log('Migrations finished');

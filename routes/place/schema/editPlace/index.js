@@ -17,6 +17,7 @@ const newSchema = (validTypes, validExtras, validCities, requirements) => Joi.ob
   address: Joi.string().strict(),
   photo: Joi.string().strict(),
   photos: Joi.array().items(Joi.string()),
+  requireSpecifyOffer: Joi.boolean(),
   location: Joi.object().keys({ coordinates: Joi.array().min(2).items(Joi.number()) }),
   socials: Joi.object().keys({
     facebook: Joi.string().strict(),
