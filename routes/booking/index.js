@@ -72,20 +72,9 @@ module.exports = (app, placeRepository, userRepository, bookingRepository, event
       regularBookings = await Promise.all(regularBookings.map(async (booking) => {
         const { requiredCredits, user } = await getBookingClaimDetails(booking);
         const creditsToPay = requiredCredits > 0 ? -requiredCredits : requiredCredits;
-        let canClaimValue;
-        let errMessage;
-        try {
-          canClaimValue = userCanClaim(user, booking, creditsToPay);
-        } catch (e) {
-          canClaimValue = false;
-          errMessage = e.message;
-        }
         return {
           ...booking,
-          canClaim: {
-            value: canClaimValue,
-            message: errMessage || '',
-          }
+          canClaim: userCanClaim(user, booking, creditsToPay),
         }
       }))
       result.regular = regularBookings;
@@ -98,21 +87,11 @@ module.exports = (app, placeRepository, userRepository, bookingRepository, event
       eventBookings = await Promise.all(eventBookings.map(async (eb) => {
         const { requiredCredits, user } = await getBookingClaimDetails(eb);
         const creditsToPay = requiredCredits > 0 ? -requiredCredits : requiredCredits;
-        let canClaimValue;
-        let errMessage;
-        try {
-          canClaimValue = userCanClaim(user, eb, creditsToPay);
-        } catch (e) {
-          canClaimValue = false;
-          errMessage = e.message;
-        }
+
         return {
           ...eb,
           event: eb.event ? await eventRepository.joinPlace(eb.event) : null,
-          canClaim: {
-            value: canClaimValue,
-            message: errMessage || '',
-          }
+          canClaim: userCanClaim(user, booking, creditsToPay),
         }
       }));
       result.event = eventBookings;
@@ -482,7 +461,10 @@ module.exports = (app, placeRepository, userRepository, bookingRepository, event
       }
       const { requiredCredits, user } = await getBookingClaimDetails(booking);
       const creditsToPay = requiredCredits > 0 ? -requiredCredits : requiredCredits;
-      userCanClaim(user, booking, creditsToPay);
+      const canClaim = userCanClaim(user, booking, creditsToPay);
+      if (canClaim.message) {
+        throw ErrorResponse.Unauthorized(canClaim.message);
+      }
       await User.findOneAndUpdate({ _id: booking.user }, { $inc: { credits: creditsToPay } });
       await Booking.findOneAndUpdate(
         {

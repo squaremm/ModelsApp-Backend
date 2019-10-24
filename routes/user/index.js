@@ -20,7 +20,9 @@ module.exports = (
   userRepository,
   bookingRepository,
   offerRepository,
-  User, Offer, Booking, Place, OfferPost, UserPaymentToken, getNewId) => {
+  User, Offer, Booking, Place, OfferPost, UserPaymentToken, getNewId, bookingUtil) => {
+  const userCanClaim = require('../booking/api/claim/userCanClaim');
+  const getBookingClaimDetails = require('../booking/api/claim/getBookingClaimDetails')(Offer, User, bookingUtil);
 
   // Get the current (authenticated) User
   app.get('/api/user/current', middleware.isAuthorized, async (req, res, next) => {
@@ -304,6 +306,9 @@ module.exports = (
         if (diff < 0) {
           return;
         }
+
+        const { requiredCredits, user } = await getBookingClaimDetails(booking);
+        booking.canClaim = userCanClaim(user, booking, requiredCredits);
   
         return booking;
       }));
@@ -351,6 +356,9 @@ module.exports = (
 
           newBooking.selectedOffer = await offerRepository.findById((newBooking.offers || []).slice(-1)[0]);
           delete newBooking.offers;
+
+          const { requiredCredits, user } = await getBookingClaimDetails(booking);
+          newBooking.canClaim = userCanClaim(user, booking, requiredCredits);
           
           return newBooking;
         }
