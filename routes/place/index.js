@@ -119,6 +119,7 @@ module.exports = (
         type: req.body.type || [],
         address: req.body.address,
         photos: req.body.photos,
+        requireSpecifyOffer: req.body.requireSpecifyOffer || false,
         location: {
           type: 'Point',
           coordinates: [parseFloat(req.body.coordinates[0]), parseFloat(req.body.coordinates[1])],

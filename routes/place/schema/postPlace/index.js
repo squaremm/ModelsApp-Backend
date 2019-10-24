@@ -11,6 +11,7 @@ const newSchema = (validTypes, validExtras, validCities, requirements) => Joi.ob
   type: Joi.array().items(
     Joi.string().strict().valid(validTypes),
   ),
+  requireSpecifyOffer: Joi.boolean(),
   address: Joi.string().strict().required(),
   photos: Joi.array().items(Joi.string()).required(),
   coordinates: Joi.array().min(2).items(Joi.number()).required(),

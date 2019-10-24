@@ -31,6 +31,7 @@ module.exports = (passport, Place, Counter, User, Interval, getNewId) => {
                     name: body.name,
                     type: body.type || [],
                     address: body.address,
+                    requireSpecifyOffer: body.requireSpecifyOffer || false,
                     description: "",
                     client: {
                       email: body.email,

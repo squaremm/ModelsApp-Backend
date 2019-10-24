@@ -268,6 +268,13 @@ module.exports = (app, placeRepository, userRepository, bookingRepository, event
     try {
       const id = parseInt(req.params.id);
       const offerId = parseInt(req.body.offerID);
+
+      const booking = await bookingRepository.findById(id);
+      const place = await placeRepository.findById(booking.place);
+
+      if (place.requireSpecifyOffer) {
+        throw ErrorResponse.Unauthorized('Cannot add offers to this place after booking');
+      }
   
       const book = await bookingUtil.addOfferToBooking(id, offerId);
       return res.status(200).json({ message: 'Added', data: book });
@@ -289,14 +296,34 @@ module.exports = (app, placeRepository, userRepository, bookingRepository, event
   });
 
   app.post('/api/v2/place/:id/book', async (req, res, next) => {
-    const id = parseInt(req.params.id);
-    const userID = parseInt(req.body.userID);
-    const intervalId = req.body.intervalId;
-    const date = moment(req.body.date);
-
     try {
+      const id = parseInt(req.params.id);
+      const userID = parseInt(req.body.userID);
+      const intervalId = req.body.intervalId;
+      const date = moment(req.body.date);
+      let offerIds = req.body.offerIds;
+
       const { fullDate, offers, chosenInterval, place } = await bookingUtil.bookPossible(id, userID, intervalId, date);
-      const booking = await bookingUtil.book(id, userID, fullDate, offers, chosenInterval, place);
+
+      if (place.requireSpecifyOffer) {
+        if (!offerIds) {
+          throw ErrorResponse.BadRequest('This place requires to specify offerIds');
+        }
+        if (!Array.isArray(offerIds)) {
+          offerIds = [offerIds];
+        }
+        const allowedOfferIds = offers.map(offer => offer._id);
+        if (!offerIds.every(id => allowedOfferIds.includes(id))) {
+          throw ErrorResponse.BadRequest(`Invalid offer id, valid are ${allowedOfferIds}`);
+        }
+      }
+      let booking = await bookingUtil.book(id, userID, fullDate, offers, chosenInterval, place);
+      if (place.requireSpecifyOffer) {
+        for (const id of offerIds) {
+          await bookingUtil.addOfferToBooking(booking._id, id);
+        }
+        booking = await bookingRepository.findById(booking._id);
+      }
       return res.status(200).json({ message: 'Booked', data: booking });
     } catch (error) {
       next(error);
