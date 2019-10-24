@@ -164,7 +164,7 @@ async function bootstrap() {
     newUserRepository(),
     newBookingRepository(),
     newOfferRepository(),
-    User, Offer, Booking, Place, OfferPost, UserPaymentToken, entityHelper);
+    User, Offer, Booking, Place, OfferPost, UserPaymentToken, entityHelper, newBookingUtil());
   require('./routes/admins')(app, User, Place, Offer, OfferPost, Booking, OfferPostArchive);
   require('./routes/client')(app, User, Place, Offer, Counter, Booking, OfferPost, Interval, SamplePost);
   require('./routes/offer')(
