@@ -1,7 +1,7 @@
 const moment = require('moment');
 
 const userCanClaim = (user, booking, requiredCredits) => {
-  if (booking.claimed = true) {
+  if (booking.claimed) {
     return {
       value: false,
       message: 'Booking has already been claimed',
