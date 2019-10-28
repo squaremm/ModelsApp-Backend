@@ -33,7 +33,6 @@ const deleteRide = require('./routes/ride/api/deleteRide');
 const deleteEvent = require('./routes/event/api/deleteEvent');
 const deleteEventBooking = require('./routes/eventBooking/api/deleteEvent');
 
-const functions = require('./config/intervalFunctions');
 const placeUtil = require('./routes/place/util');
 const bookingUtil = require('./routes/booking/util');
 const pushProvider = require('./lib/pushProvider');
@@ -285,8 +284,6 @@ async function bootstrap() {
   );
 
   addErrorHandling(app);
-  
-  functions.sendReportBookingEmail(db);
 
   const PORT = process.env.PORT || 3000;
 
