@@ -45,10 +45,6 @@ require('./routes/campains/campaigns')(app);
 require('./routes/campains/userCampaigns')(app);
 require('./routes/campains/campaignsIntervals')(app);
 
-var functions = require('./config/intervalFunctions');
-
-functions.sendReportBookingEmail(db);
-
 var PORT = process.env.PORT || 3000;
 
 app.listen(PORT, '0.0.0.0', function () {
