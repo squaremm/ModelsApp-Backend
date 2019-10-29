@@ -26,7 +26,7 @@ const userCanClaim = (user, booking, requiredCredits) => {
     }
   }
 
-  if (moment().duration(end.diff(bookingDate)).asMinutes() > 60) {
+  if (moment.duration(bookingDate.diff(moment())).asMinutes() > 60) {
     return {
       value: false,
       message: "Cannot claim, it's too early",
