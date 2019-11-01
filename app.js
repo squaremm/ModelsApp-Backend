@@ -4,10 +4,8 @@ const cors = require('cors');
 const passport = require('passport');
 const app = express();
 const Sentry = require('@sentry/node');
-const { CronJob } = require('cron');
 const config = require('./config/');
 
-const downloadDb = require('./migrations/downloadDatabase/index');
 const Database = require('./config/database');
 const newValidator = require('./lib/validator');
 const ErrorResponse = require('./core/errorResponse');
@@ -85,42 +83,6 @@ async function bootstrap() {
     newPlaceUtil(),
     entityHelper,
   );
-  
-  // run backup at midnight every day
-  new CronJob('0 0 * * *', async () => {
-    try {
-      await downloadDb({
-        User,
-        Place,
-        Offer,
-        Counter,
-        Booking,
-        OfferPost,
-        Interval,
-        SamplePost,
-        ActionPoints,
-        PlaceType,
-        PlaceExtra,
-        PlaceTimeFrame,
-        City,
-        Driver,
-        Event,
-        DriverRide,
-        EventBooking,
-        Ride,
-        Requirement,
-        Profile,
-        OfferPostArchive,
-        UserPaymentToken,
-        Campaign,
-        UserCampaign,
-        EventOffer,
-        CampaignInterval,
-      });
-    } catch (error) {
-      console.log('Could not backup db: ', error);
-    }
-  }, null, true, 'Europe/Rome');
 
   const newEventOfferRepository = () => eventOfferRepository(EventOffer);
   const newRequirementRepository = () => requirementRepository(Requirement);
