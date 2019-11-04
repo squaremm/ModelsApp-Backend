@@ -71,10 +71,9 @@ module.exports = (app, placeRepository, userRepository, bookingRepository, event
       let regularBookings = await bookingRepository.findAllRegularBookingsForUser(user._id);
       regularBookings = await Promise.all(regularBookings.map(async (booking) => {
         const { requiredCredits, user } = await getBookingClaimDetails(booking);
-        const creditsToPay = requiredCredits > 0 ? -requiredCredits : requiredCredits;
         return {
           ...booking,
-          canClaim: userCanClaim(user, booking, creditsToPay),
+          canClaim: userCanClaim(user, booking, requiredCredits),
         }
       }))
       result.regular = regularBookings;
@@ -86,12 +85,11 @@ module.exports = (app, placeRepository, userRepository, bookingRepository, event
       })));
       eventBookings = await Promise.all(eventBookings.map(async (eb) => {
         const { requiredCredits, user } = await getBookingClaimDetails(eb);
-        const creditsToPay = requiredCredits > 0 ? -requiredCredits : requiredCredits;
 
         return {
           ...eb,
           event: eb.event ? await eventRepository.joinPlace(eb.event) : null,
-          canClaim: userCanClaim(user, booking, creditsToPay),
+          canClaim: userCanClaim(user, booking, requiredCredits),
         }
       }));
       result.event = eventBookings;
@@ -491,7 +489,7 @@ module.exports = (app, placeRepository, userRepository, bookingRepository, event
       if (canClaim.message) {
         throw ErrorResponse.Unauthorized(canClaim.message);
       }
-      await User.findOneAndUpdate({ _id: booking.user }, { $inc: { credits: creditsToPay } });
+      await User.findOneAndUpdate({ _id: booking.user }, { $inc: { credits: requiredCredits } });
       await Booking.findOneAndUpdate(
         {
           _id: parseInt(req.params.id),
