@@ -7,9 +7,8 @@ const userCanClaim = (user, booking, requiredCredits) => {
       message: 'Booking has already been claimed',
     }
   }
-  let creditsToPay = requiredCredits < 0 ? -requiredCredits : requiredCredits;
 
-  if (user.credits < creditsToPay) {
+  if (user.credits < requiredCredits) {
     return {
         value: false,
         message: 'Not enough credits',

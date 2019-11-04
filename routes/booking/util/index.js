@@ -122,7 +122,7 @@ class BookingUtil {
     const booking = await this.Booking.insertOne(newBooking);
     await this.User.findOneAndUpdate({_id: newBooking.user}, {
       $push: { bookings: newBooking._id },
-      $inc: { credits: parseInt(-1 * newBooking.payed) }
+      $inc: { credits: parseInt(-newBooking.payed) }
     });
     await this.sendBookingEmailMessage(place, newBooking);
 

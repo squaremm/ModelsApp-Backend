@@ -12,7 +12,7 @@ const getBookingClaimDetails = (Offer, User, bookingUtil) => async (booking) => 
   requiredCredits -= booking.payed;
 
   if (requiredCredits > 0) {
-    requiredCredits = -requiredCredits;
+    requiredCredits = 0;
   }
 
   return { user, requiredCredits };

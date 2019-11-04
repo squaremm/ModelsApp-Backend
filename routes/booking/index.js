@@ -487,8 +487,7 @@ module.exports = (app, placeRepository, userRepository, bookingRepository, event
         throw ErrorResponse.NotFound('No such booking');
       }
       const { requiredCredits, user } = await getBookingClaimDetails(booking);
-      const creditsToPay = requiredCredits > 0 ? -requiredCredits : requiredCredits;
-      const canClaim = userCanClaim(user, booking, creditsToPay);
+      const canClaim = userCanClaim(user, booking, requiredCredits);
       if (canClaim.message) {
         throw ErrorResponse.Unauthorized(canClaim.message);
       }
@@ -499,7 +498,7 @@ module.exports = (app, placeRepository, userRepository, bookingRepository, event
         },
         {
           $set: { claimed: true },
-          $inc: { payed: creditsToPay },
+          $inc: { payed: requiredCredits },
         });
 
       return res.status(200).json({ message: 'Claimed' });
