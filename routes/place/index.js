@@ -473,7 +473,7 @@ module.exports = (
     if (typologies && extras) {
       for (const typology of typologies) {
         for (const extra of extras) {
-          query.$or.push({ type: typology, extra, ...defaultQuery });
+          query.$or.push({ type: typology, extras: extra, ...defaultQuery });
         }
       }
     } else if (typologies) {
@@ -482,7 +482,7 @@ module.exports = (
       }
     } else if (extras) {
       for (const extra of extras) {
-        query.$or.push({ extra, ...defaultQuery });
+        query.$or.push({ extras: extra, ...defaultQuery });
       }
     } else {
       query.$or.push({ ...defaultQuery });
