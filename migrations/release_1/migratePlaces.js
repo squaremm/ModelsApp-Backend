@@ -10,6 +10,7 @@ const beautySalon = "Beauty Salon"
 const store = "Store";
 const juiceBar = "Juice Bar";
 const icecreamBar = "Icecream Bar"
+const spa = "Spa";
 
 // place extras
 const karaoke = "Karaoke";
@@ -27,6 +28,10 @@ const aperitiv = "Aperitif";
 const breakfast = "Breakfast";
 const dinner = "Dinner";
 const lunch = "Lunch";
+
+// cities
+const bali = "Bali";
+const london = "London";
 
 const newDefaultTimeFrames = (...args) => ({
   monday: [...args],
@@ -50,7 +55,7 @@ const newGetPlaceServingDays = (Interval) => async (id) => {
 
 const migratePlaces = async (Place, Interval) => {
   const getPlaceServingDays = newGetPlaceServingDays(Interval);
-  await Place.updateOne({ name: "55 Milano" }, { $set: { type: [loungeAndBar], servingTimeFrames: _.pick(newDefaultTimeFrames(aperitiv), await getPlaceServingDays(79)) }});
+  await Place.updateOne({ name: "55 Milano" }, { $set: { type: [loungeAndBar], servingTimeFrames: _.pick(newDefaultTimeFrames(aperitiv), await getPlaceServingDays(79)), city: "Milan" }});
   await Place.updateOne({ name: "Adda 11" }, { $set: { type: [restaurant], servingTimeFrames: newDefaultTimeFrames([]) }});
   await Place.updateOne({ name: "Bottega Emilia" }, { $set: { type: [loungeAndBar], servingTimeFrames: _.pick(newDefaultTimeFrames(breakfast, lunch, dinner, snack), await getPlaceServingDays(95)) }});
   await Place.updateOne({ name: "CaBarET" }, { $set: { type: [restaurant], servingTimeFrames: _.pick(newDefaultTimeFrames([]), await getPlaceServingDays(100)) }});
@@ -142,6 +147,48 @@ const migratePlaces = async (Place, Interval) => {
   await Place.updateOne({ _id: 67 }, { $set: { type: [restaurant], extras: [vegetarian], servingTimeFrames: newDefaultTimeFrames([]) }});
   // Visca
   await Place.updateOne({ _id: 148 }, { $set: { type: [restaurant], extras: [vegetarian], servingTimeFrames: _.pick(newDefaultTimeFrames(lunch), await getPlaceServingDays(148)) }});
+  // Odyssey
+  await Place.updateOne({ _id: 121 }, { $set: { city: bali, type: [gym] }});
+  // Bali Smoothie
+  await Place.updateOne({ _id: 123 }, { $set: { city: bali, type: [restaurant] }});
+  // The Lawn
+  await Place.updateOne({ _id: 131 }, { $set: { city: bali, type: [restaurant] }});
+  // Front Cafe
+  await Place.updateOne({ _id: 133 }, { $set: { city: bali, type: [restaurant] }});
+  // Canggu Nest
+  await Place.updateOne({ _id: 128 }, { $set: { city: bali, type: [restaurant] }});
+  // Kilo Kitchen
+  await Place.updateOne({ _id: 136 }, { $set: { city: bali, type: [restaurant] }});
+  // Bali Climbing
+  await Place.updateOne({ _id: 137 }, { $set: { city: bali, type: [gym] }});
+  // Essential Canngu
+  await Place.updateOne({ _id: 139 }, { $set: { city: bali, type: [restaurant] }});
+  // Amo spa
+  await Place.updateOne({ _id: 141 }, { $set: { city: bali, type: [spa] }});
+  // Mai Tai
+  await Place.updateOne({ _id: 147 }, { $set: { city: bali, type: [restaurant] }});
+  // Cibo
+  await Place.updateOne({ _id: 151 }, { $set: { city: bali, type: [restaurant] }});
+  // The Dusty Cafe
+  await Place.updateOne({ _id: 160 }, { $set: { city: bali, type: [restaurant] }});
+  // Superfood
+  await Place.updateOne({ _id: 162 }, { $set: { city: bali, type: [restaurant] }});
+  // CP Lounge
+  await Place.updateOne({ _id: 173 }, { $set: { city: bali, type: [restaurant] }});
+  // BB52
+  await Place.updateOne({ _id: 166 }, { $set: { city: bali, type: [restaurant] }});
+  // Hippie Fish
+  await Place.updateOne({ _id: 169 }, { $set: { city: bali, type: [restaurant] }});
+  // Avocado Factory
+  await Place.updateOne({ _id: 170 }, { $set: { city: bali, type: [restaurant] }});
+  // LAFS Pizza
+  await Place.updateOne({ _id: 171 }, { $set: { city: bali, type: [restaurant] }});
+  // Liban Tapas
+  await Place.updateOne({ _id: 152 }, { $set: { city: london, type: [restaurant] }});
+  // Matcha and Beyond
+  await Place.updateOne({ _id: 156 }, { $set: { city: london, type: [restaurant] }});
+  // Imperial Treasure
+  await Place.updateOne({ _id: 163 }, { $set: { city: london, type: [restaurant] }});
 };
 
 module.exports = migratePlaces;
