@@ -693,6 +693,7 @@ module.exports = (
   });
 
   function rangesOverlap(start1, end1, start2, end2) {
+    console.log("ranges overlap: ", start1, end1, start2, end2);
     // case 1: range2 is subset
     if (start1 <= start2 && end1 >= end2) {
       return true;
@@ -704,7 +705,7 @@ module.exports = (
     }
 
     // case 3: range2 overlaps from right
-    if (start1 <= start2 && start1 <= end2 && end1 >= start1 && end1 <= end2) {
+    if (start1 <= start2 && start1 <= end2 && end1 >= start1 && end1 >= end2) {
       return true;
     }
 
