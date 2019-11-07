@@ -91,7 +91,7 @@ module.exports = (app, User, Place, Offer, Counter, Booking, OfferPost, Interval
     await Place.updateMany({}, { $set: { requireSpecifyOffer: false }});
 
     console.log('Migrating places...');
-    await migratePlaces(Place);
+    await migratePlaces(Place, Interval);
     console.log('Migrations finished');
 
     console.log('Add isActive to OfferPosts');
