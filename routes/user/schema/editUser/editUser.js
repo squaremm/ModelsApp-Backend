@@ -2,7 +2,7 @@ const Joi = require('@hapi/joi');
 const { GENDERS } = require('./../../constant');
 
 const newSchema = {
-  registerStep: Joi.number().integer(),
+  registerStep: Joi.number(),
   name: Joi.string().strict(),
   surname: Joi.string().strict(),
   gender: Joi.string().strict().valid(Object.values(GENDERS)),
