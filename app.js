@@ -335,7 +335,7 @@ process
   })
   .on('uncaughtException', err => {
     console.error(err, 'Uncaught Exception thrown');
-    process.exit(1);
+    Sentry.captureException({ err, message: 'Uncaught exception '});
   });
 
 bootstrap();
