@@ -319,9 +319,12 @@ class BookingUtil {
         }
       }
       case SUBSCRIPTION.unlimited: {
-        return false;
+        if (numBookings >= SUBSCRIPTION_BOOKING_LIMITS.unlimited) {
+          return true;
+        }
       }
     }
+    return false;
   }
 
   async venueLimitReached(recentUserBookings, place, user) {
