@@ -468,9 +468,11 @@ module.exports = (
         isActive: true,
       });
       const bookingAction = (booking.actions || []).find(x => x.offerId === offer._id);
+      console.log(`Found booking action: ${inspect(bookingAction)}`);
 
       if (!bookingAction) throw ErrorResponse.BadRequest('no actions for this offerId');
 
+      console.log(`Looking for action ${expectedBody.actionType}`);
       let foundBookingAction = bookingAction.actions.find(action => action.type === expectedBody.actionType);
       if (!foundBookingAction) throw ErrorResponse.BadRequest('no such action available');
       if (dbOfferPost) throw ErrorResponse.Unauthorized('action has already been posted');
