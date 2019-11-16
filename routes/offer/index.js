@@ -1,6 +1,7 @@
 const _ = require('lodash');
 const moment = require('moment');
 const multiparty = require('multiparty');
+const { inspect } = require('util');
 
 const middleware = require('../../config/authMiddleware');
 const imageUploader = require('../../lib/imageUplader');
@@ -434,6 +435,7 @@ module.exports = (
           }
           resolve({ fields, files });
         }));
+      console.log(`Received files in form data body: ${inspect(fields)}`);
 
       let expectedBody;
       try {
@@ -488,7 +490,7 @@ module.exports = (
         credits: calculateActionPoints(actionPoints.points, user.level, offer.level),
         offer: offer._id,
         stars: expectedBody.star,
-        creationDate: moment().format('DD-MM-YYYY'),
+        creationDate: moment().utc().toISOString(),
         link: expectedBody.link,
         feedback: expectedBody.feedback,
         place: offer.place,
