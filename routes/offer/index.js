@@ -442,10 +442,10 @@ module.exports = (
         expectedBody = {
           bookingId: parseInt(fields.bookingId[0]),
           offerId: parseInt(fields.offerId[0]),
-          actionType: fields.actionType[0].replace('"', '').replace("'", "'"),
+          actionType: fields.actionType[0].replace(/'/g, '').replace(/"/g, ''),
           star: fields.star ? parseInt(fields.star[0]) : 0,
-          feedback: fields.feedback ? fields.feedback[0].replace('"', '').replace("'", "'") : null,
-          link: fields.link ? fields.link[0].replace('"', '').replace("'", "'") : null,
+          feedback: fields.feedback ? fields.feedback[0].replace(/'/g, '').replace(/"/g, '') : null,
+          link: fields.link ? fields.link[0].replace(/'/g, '').replace(/"/g, '') : null,
         };
       } catch (error) {
         throw ErrorResponse.BadRequest('wrong parameters');
