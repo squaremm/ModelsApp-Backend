@@ -667,7 +667,7 @@ module.exports = (
                     res.json({ message: "Profile updated with referral code" });
                   });
   
-                  User.findOneAndUpdate({ referralCode: newUser.referral },
+                  User.updateMany({ referralCode: newUser.referral },
                     { $push: { referrals: user._id }, $inc: { credits: refCredits }});
   
                   // Send push notifications to all referral code owner's devices
