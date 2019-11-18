@@ -41,8 +41,13 @@ module.exports = (
 
       if (offer.place.socials.instagram) {
         const { instagram } = offer.place.socials;
-        const regexp = instagram.match(/instagram.com\/(.*)\/?\??/i);
-        offer.instaUser = regexp[1];
+        try {
+          const regexp = instagram.match(/instagram.com\/(.*)\/?\??/i);
+          offer.instaUser = regexp[1];
+        } catch (error) {
+          console.log(`Couldn't read user from instagram ${instagram}`);
+          offer.instaUser = instagram;
+        }
       }
 
       return res.status(200).json(offer);
