@@ -2,6 +2,7 @@ const _ = require('lodash');
 const moment = require('moment');
 const crypto = require('crypto');
 
+const sendGrid = require('../../lib/sendGrid');
 const middleware = require('./../../config/authMiddleware');
 const ErrorResponse = require('./../../core/errorResponse');
 
@@ -498,6 +499,11 @@ module.exports = (app, placeRepository, userRepository, bookingRepository, event
           $set: { claimed: true },
           $inc: { payed: requiredCredits },
         });
+
+      const offers = await Offer.find({ _id: { $in: booking.offers } }).toArray();
+      const place = await Place.findOne({_id: booking.place});
+
+      await sendGrid.sendNewReservation(booking, place || {}, offers, user);
 
       return res.status(200).json({ message: 'Claimed' });
     } catch (error) {
