@@ -20,7 +20,7 @@ module.exports = (app, User, Place, Offer, OfferPost, Booking, OfferPostArchive)
 
         pushProvider.userAcceptNotification(devices, isPaymentRequired)
         .then(async (x) =>{
-          await sendgrid.sendUserAcceptedMail(updated.value.email, req);
+          await sendgrid.sendUserAcceptedMail(updated.value, req);
           res.json({ message: "The model has been accepted" });
         })
         .catch(err =>{

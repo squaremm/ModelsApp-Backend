@@ -644,6 +644,14 @@ module.exports = (
             user.devices.push(newUser.deviceID);
           }
         }
+
+        if (user.registerStep === 2 && newUser.registerStep === 3) {
+          try {
+            sendGrid.sendThanksForInterestEmail(newUser);
+          } catch (error) {
+            console.log(error);
+          }
+        }
         
         // User can link a referral only if he has not registered yet
         if(newUser.referral && !user.referredFrom) {
