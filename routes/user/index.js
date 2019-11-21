@@ -13,6 +13,7 @@ const newEditUserSchema = require('./schema/editUser');
 const newEditUserAdminSchema = require('./schema/editUserAdmin');
 const ErrorResponse = require('./../../core/errorResponse');
 const { SUBSCRIPTION } = require('./../../config/constant');
+const editEmailSchema = require('./schema/editEmail');
 
 module.exports = (
   app,
@@ -50,6 +51,21 @@ module.exports = (
       } else {
         throw ErrorResponse.BadRequest('invalid parameters');
       }
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.put('/api/user/email', middleware.isAuthorized, async (req, res, next) => {
+    try {
+      const user = await req.user;
+      const validation = validate(req.body, editEmailSchema);
+      if (validation.error) {
+        throw ErrorResponse.BadRequest(validation.error);
+      }
+      sendGrid.sendEmailChangedNotification(user, req.body.email);
+      await User.updateOne({ _id: user._id }, { $set: { email: req.body.email } });
+      return res.status(200).json({ message: "Ok" });
     } catch (error) {
       return next(error);
     }
