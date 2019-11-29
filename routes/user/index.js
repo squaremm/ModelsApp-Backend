@@ -466,7 +466,7 @@ module.exports = (
       if (!user || !user.value) {
         throw ErrorResponse.NotFound('User not found');
       }
-      await sendGrid.sendForgotPasswordEmail(temporaryPassword, user.value);
+      await sendGrid.sendForgotPasswordEmail(temporaryPassword, user);
       return res.status(200).json({ message: 'check your email' });
     } catch (error) {
       return next(error);
