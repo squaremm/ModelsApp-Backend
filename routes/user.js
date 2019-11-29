@@ -321,7 +321,7 @@ module.exports = function(app) {
         { $set: { temporaryPassword : bcrypt.hashSync(temporaryPassword, bcrypt.genSaltSync(8), null) } }, 
         { new: true, returnOriginal: false } )
         .then(async (user) => {
-          await sendGrid.sendForgotPasswordEmail(temporaryPassword, user.value);
+          await sendGrid.sendForgotPasswordEmail(temporaryPassword, user);
           res.status(200).json({message: 'check your email'});
         })
         .catch((err) => {
