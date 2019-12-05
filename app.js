@@ -4,6 +4,8 @@ var cors = require('cors');
 var passport = require('passport');
 var config = require('./config/index');
 var app = express();
+const moment = require('moment');
+const fs = require('fs');
 
 const Sentry = require('@sentry/node');
 Sentry.init({ dsn: config.sentryUrl });
@@ -52,6 +54,7 @@ app.listen(PORT, '0.0.0.0', function () {
 });
 
 app.use((err, req, res, next) => {
+  console.log('a');
   if (! err) {
       return next();
   }
@@ -65,4 +68,3 @@ app.use((err, req, res, next) => {
   Sentry.captureException(excetpionOpbject);
   res.status(500).json({message : "Something went wrong!" });
 });
-

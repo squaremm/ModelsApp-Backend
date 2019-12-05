@@ -16,7 +16,7 @@ db.getInstance(function (p_db) {
 
 module.exports = function(app) {
 
-  app.put(['/api/admin/model/:id/accept'], async function (req, res) {
+  app.put(['/api/admin/model/:id/accept'], middleware.isAdmin, async function (req, res) {
     var id = parseInt(req.params.id);
     var level = parseInt(req.body.level) || 4;
     let isPaymentRequired = req.body.isPaymentRequired;
@@ -42,7 +42,7 @@ module.exports = function(app) {
       }
     });
   });
-  app.put(['/api/admin/model/:id/reject'], function (req, res) {
+  app.put(['/api/admin/models/:id/to-reject'], middleware.isAdmin, function (req, res) {
     var id = parseInt(req.params.id);
 
     User.findOneAndUpdate({ _id: id }, { $set: { accepted: false, isAcceptationPending: false }},{new: true}, function (err, updated) {
@@ -63,7 +63,7 @@ module.exports = function(app) {
       }
     });
   });
-  app.put(['/api/admin/model/:id/payment'], async function (req, res) {
+  app.put(['/api/admin/model/:id/payment'], middleware.isAdmin, async function (req, res) {
     var id = parseInt(req.params.id);
     let isPaymentRequired = req.body.isPaymentRequired;
     if(id && typeof isPaymentRequired === "boolean"){
@@ -79,7 +79,7 @@ module.exports = function(app) {
     }
   });
 
-  app.put('/api/admin/model/:id/extraCredits', (req, res) => {
+  app.put('/api/admin/model/:id/extraCredits', middleware.isAdmin, (req, res) => {
     var id = parseInt(req.params.id);
     var creditValue = parseInt(req.body.credits);
     if(id && creditValue){
@@ -148,7 +148,7 @@ module.exports = function(app) {
     });
   });
 
-  app.put('/api/admin/offerpost/:id/accept', async (req,res)=> {
+  app.put('/api/admin/offerpost/:id/accept', middleware.isAdmin, async (req,res)=> {
     var id = parseInt(req.params.id);
     var approvementLink = req.body.approvementLink;
     //find post action in db
@@ -182,7 +182,7 @@ module.exports = function(app) {
         res.status(404).json({message: 'action not found'});
       });
   });
-  app.put('/api/admin/offerpost/:id/reject', async (req,res)=> {
+  app.put('/api/admin/offerpost/:id/reject', middleware.isAdmin, async (req,res)=> {
     var id = parseInt(req.params.id);
     //find post action in db
     OfferPost.findOne({ _id: id })
