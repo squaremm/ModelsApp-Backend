@@ -15,8 +15,8 @@ const userCanClaim = (user, booking, requiredCredits) => {
     }
   }
 
-  const bookingDate = moment(`${booking.date} ${booking.startTime}`, 'DD-MM-YYYY h.mm')
-    .subtract({ hours: 1 });
+  const bookingDate = moment(`${booking.date} ${booking.endTime}`, 'DD-MM-YYYY h.mm')
+    .add({ minutes: 10 });
 
   if (moment().isAfter(bookingDate)) {
     return {
@@ -25,7 +25,9 @@ const userCanClaim = (user, booking, requiredCredits) => {
     }
   }
 
-  if (moment.duration(bookingDate.diff(moment())).asMinutes() > 60) {
+  const bookingDateStart = moment(`${booking.date} ${booking.startTime}`, 'DD-MM-YYYY h.mm');
+
+  if (moment.duration(bookingDateStart.diff(moment())).asMinutes() > 10) {
     return {
       value: false,
       message: "Cannot claim, it's too early",
