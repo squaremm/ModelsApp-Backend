@@ -314,12 +314,14 @@ module.exports = function(app) {
   });
 
   app.post('/api/user/forgotPassword', async (req,res) => {
-    var email = req.body.email;
+    var email = req.body.email.toLowerCase();
     if(email){
       var temporaryPassword = crypto.randomBytes(2).toString('hex');
-      User.findOneAndUpdate({email:  email }, 
+      User.findOneAndUpdate(
+        { email },
         { $set: { temporaryPassword : bcrypt.hashSync(temporaryPassword, bcrypt.genSaltSync(8), null) } }, 
-        { new: true, returnOriginal: false } )
+        { new: true, returnOriginal: false }
+      )
         .then(async (user) => {
           await sendGrid.sendForgotPasswordEmail(temporaryPassword, user.value);
           res.status(200).json({message: 'check your email'});

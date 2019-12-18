@@ -1,22 +1,24 @@
 require('dotenv').config();
-var express = require('express');
-var cors = require('cors');
-var passport = require('passport');
-var config = require('./config/index');
-var app = express();
-const moment = require('moment');
-const fs = require('fs');
-
 const Sentry = require('@sentry/node');
+const express = require('express');
+const cors = require('cors');
+const passport = require('passport');
+const pino = require('pino');
+
+const config = require('./config/index');
+const db = require('./config/connection');
+
+const app = express();
+const logger = pino();
+
 Sentry.init({ dsn: config.sentryUrl });
 
-var db = require('./config/connection');
 db.initPool();
 
-var corsOptions = {
-  "origin": "*",
-  "methods": "GET,PUT,POST,DELETE",
-  "allowedHeaders": "Content-Type, Authorization, Content-Length, X-Requested-With"
+const corsOptions = {
+  origin: '*',
+  methods: 'GET,PUT,POST,DELETE',
+  allowedHeaders: 'Content-Type, Authorization, Content-Length, X-Requested-With'
 };
 
 app.use(cors(corsOptions));
@@ -54,17 +56,19 @@ app.listen(PORT, '0.0.0.0', function () {
 });
 
 app.use((err, req, res, next) => {
-  console.log('a');
-  if (! err) {
+  if (!err) {
       return next();
   }
-  let excetpionOpbject = {
-    err: err,
+
+  const excetpionOpbject = {
+    err,
     method: req.method,
     path: req.path,
     host: req.host,
     body: req.body
   }
+
   Sentry.captureException(excetpionOpbject);
-  res.status(500).json({message : "Something went wrong!" });
+  logger.error(excetpionOpbject);
+  res.status(500).json({message : 'Something went wrong!' });
 });

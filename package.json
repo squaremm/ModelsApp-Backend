@@ -29,6 +29,7 @@
     "passport-instagram": "^1.0.0",
     "passport-jwt": "^4.0.0",
     "passport-local": "^1.0.0",
+    "pino": "^5.15.0",
     "request": "^2.88.0",
     "validate": "^4.5.1"
   },

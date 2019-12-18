@@ -1,5 +1,5 @@
 let db = require('../../config/connection');
-let campaignSchema = require('../../model/campaign/campaignSchema');
+let { campaignSchema } = require('../../model/campaign/campaignSchema');
 let viewModels = require('../../model/campaign/campaignViewModel');
 let moment = require('moment');
 let entityHelper = require('../../lib/entityHelper');
@@ -21,11 +21,11 @@ module.exports = function(app) {
   //create new campaing
   app.post('/api/admin/campaign', async (req, res) => {
     let campaign =  req.body;
-    let errors = campaignSchema.campaignSchema.validate(campaign);
+    let errors = campaignSchema.validate(campaign);
     if(errors.length == 0){
       let rewardValidator = await validateRewards(campaign.rewards);
       let taskValidator = await validateTasks(campaign.tasks)
-      if(rewardValidator.isValid && taskValidator.isValid){
+      if (rewardValidator.isValid && taskValidator.isValid){
         campaign._id = await entityHelper.getNewId('campaignId');
         campaign.mainImage = null;
         campaign.qrCode = crypto.randomBytes(20).toString('hex'),
@@ -35,8 +35,8 @@ module.exports = function(app) {
         campaign.winners = [];
         campaign.acceptedUsers = [];
         await Campaign.insertOne(campaign);
-      res.status(200).json(campaign);
-      }else{
+        res.status(200).json(campaign);
+      } else{
         res.status(400).json({message: rewardValidator.error + ' ' + taskValidator.error});
       }
     }else{
@@ -501,7 +501,7 @@ app.put('/api/admin/campaign/:id', async (req, res) => {
   if(id){
     let dbCampaign = await Campaign.findOne({ _id: id });
     if(dbCampaign){
-      let errors = campaignSchema.campaignSchema.validate(campaignToValidate);
+      let errors = campaignSchema.validate(campaignToValidate);
       if(errors.length == 0){
         let rewardValidator = await validateRewards(campaign.rewards);
         let taskValidator = await validateTasks(campaign.tasks)

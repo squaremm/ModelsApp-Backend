@@ -12,18 +12,18 @@ db.getInstance(function(p_db) {
 var exports = module.exports = {};
 
 exports.createUser = async (req, res, next) => {
-    var email = req.body.email;
+    var email = req.body.email.toLowerCase();
     var password = req.body.password;
     var confirmPassword = req.body.confirmPassword;
     const emailRegexp = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
     
     if(email && emailRegexp.test(email) && password && confirmPassword && password == confirmPassword){
         email = email.toLowerCase();
-        var user = await User.findOne({ email:  email});
+        var user = await User.findOne({ email });
         if(!user){
             var newUser = {
                 _id : await entityHelper.getNewId('userid'),
-                email : email,
+                email,
                 password : bcrypt.hashSync(password, bcrypt.genSaltSync(8), null),
                 photo: null,
                 accepted : false,
@@ -88,12 +88,12 @@ exports.createUser = async (req, res, next) => {
 };
 
 exports.loginUser = async (req, res, next) => {
-    var email = req.body.email;
+    var email = req.body.email.toLowerCase();
     var password = req.body.password;
     const emailRegexp = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
     if(email && emailRegexp.test(email) &&  password){
         email = email.toLowerCase();
-        var user = await User.findOne({ email:  email});
+        var user = await User.findOne({ email });
         if(user){
             var isTempPassword = Boolean(user.temporaryPassword && bcrypt.compareSync(password, user.temporaryPassword)); //user has temporary password so he forgot his current one
             if(user && user.password && (bcrypt.compareSync(password, user.password) 

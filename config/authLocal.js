@@ -20,15 +20,13 @@ module.exports = function (passport) {
     passReqToCallback: true
   },
     function (req, email, password, done) {
-      console.log(req.body)
-
       var body = req.body;
 
-      Place.findOne({ "client.email": body.email }, function (err, user) {
+      Place.findOne({ "client.email": body.email.toLowerCase() }, function (err, user) {
         if (err) return done(err);
 
         if (user) {
-          req.authMessage = "User with email '" + body.email + "' already exists";
+          req.authMessage = "User with email '" + body.email.toLowerCase() + "' already exists";
           return done(null, false);
         } else {
           if (body.confirmPassword === body.password) {
@@ -44,7 +42,7 @@ module.exports = function (passport) {
                     address: body.address,
                     description: "",
                     client: {
-                      email: body.email,
+                      email: body.email.toLowerCase(),
                       password: bcrypt.hashSync(body.password, bcrypt.genSaltSync(8), null),
                       phone: body.phone
                     },
@@ -115,7 +113,7 @@ module.exports = function (passport) {
   },
     function (req, email, password, done) {
       var body = req.body;
-      Place.findOne({ 'client.email': body.email }, function (err, user) {
+      Place.findOne({ 'client.email': body.email.toLowerCase() }, function (err, user) {
         if (err) return done(err);
         if (user) {
           if (bcrypt.compareSync(body.password, user.client.password)) {
@@ -139,17 +137,17 @@ module.exports = function (passport) {
   },
     function (req, email, password, done) {
       var body = req.body;
-      User.findOne({ "email": body.email }, function (err, resp) {
+      User.findOne({ "email": body.email.toLowerCase() }, function (err, resp) {
         if (err) return done(err);
         if (resp) {
-          req.authMessage = "User with email '" + body.email + "' already exists";
+          req.authMessage = "User with email '" + body.email.toLowerCase() + "' already exists";
           return done(null, false);
         }
         if (body.password === body.confirmPassword) {
           if (body.birthdate && body.nationality && body.instagram_account && body.phone
             && body.firstName && body.LastName && body.sex) {
             let user = {
-              email: body.email,
+              email: body.email.toLowerCase(),
               password: bcrypt.hashSync(body.password, bcrypt.genSaltSync(8), null),
               first_name: body.firstName,
               last_name: body.LastName,
@@ -185,7 +183,7 @@ module.exports = function (passport) {
   },
     function (req, email, password, done) {
       var body = req.body;
-      User.findOne({ 'email': body.email }, function (err, user) {
+      User.findOne({ 'email': body.email.toLowerCase() }, function (err, user) {
         if (err) return done(err);
         if (user) {
           if (bcrypt.compareSync(body.password, user.password)) {

@@ -15,9 +15,9 @@ db.getInstance(function (p_db) {
 function generateUserToken(req, res) {
   var accessToken = token.generateAccessToken(req.user._id);
   if (!accessToken) {
-    res.json({ message: "Authentication failed" });
+    res.json({ message: 'Authentication failed' });
   } else {
-    res.json({ message: "Authentication completed", token: accessToken });
+    res.json({ message: 'Authentication completed', token: accessToken });
   }
 }
 
@@ -34,13 +34,13 @@ module.exports = function (app) {
         user = await user;
         if (err) return res.json({ message: err.message, token: null });
         if (!user) {
-          return res.json({ message: "Authentication failed", token: null });
+          return res.json({ message: 'Authentication failed', token: null });
         } else {
           var accessToken = token.generateAccessToken(user._id);
           if (!accessToken) {
-            res.json({ message: "Authentication failed", token: null });
+            res.json({ message: 'Authentication failed', token: null });
           } else {
-            res.json({ message: "Authentication completed", token: accessToken });
+            res.json({ message: 'Authentication completed', token: accessToken });
           }
         }
       })(req, res, next);
@@ -63,8 +63,8 @@ module.exports = function (app) {
     }, async function (err, user) {
       user = await user;
       if (err) return res.json({ error: err });
-      if (!user) return res.json({ message: "Unauthorized" });
-      res.json({ message: "Authorized" });
+      if (!user) return res.json({ message: 'Unauthorized' });
+      res.json({ message: 'Authorized' });
     })(req, res, next);
   });
 
@@ -75,8 +75,8 @@ module.exports = function (app) {
     passport.authorize('facebook', { session: false }, async function (err, user) {
       user = await user;
       if (err) return res.json({ error: err });
-      if (!user) return res.json({ message: "Unauthorized" });
-      res.json({ message: "Authorized" })
+      if (!user) return res.json({ message: 'Unauthorized' });
+      res.json({ message: 'Authorized' })
     })(req, res, next);
   });
 
@@ -92,9 +92,9 @@ module.exports = function (app) {
         } else {
           var accessToken = token.generateAccessToken(place._id);
           if (!accessToken) {
-            res.json({ message: "Registration failed", token: null });
+            res.json({ message: 'Registration failed', token: null });
           } else {
-            res.json({ message: "Registration completed", token: accessToken, _id : place._id  });
+            res.json({ message: 'Registration completed', token: accessToken, _id : place._id  });
           }
         }
       })(req, res, next);
@@ -109,9 +109,9 @@ module.exports = function (app) {
         } else {
           var accessToken = token.generateAccessToken(user._id);
           if (!accessToken) {
-            res.json({ message: "Registration failed", token: null });
+            res.json({ message: 'Registration failed', token: null });
           } else {
-            res.json({ message: "Registration completed", token: accessToken, _id : user._id  });
+            res.json({ message: 'Registration completed', token: accessToken, _id : user._id  });
           }
         }
       })(req, res, next);
@@ -119,7 +119,7 @@ module.exports = function (app) {
 
   // API FOR CREATE PROFILE
   app.post('/api/auth/user/signup', function (req, res, next) {
-    passport.authenticate("create-profile", { session: false, failWithError: true },
+    passport.authenticate('create-profile', { session: false, failWithError: true },
       async function (err, user) {
         user = await user;
         // console.log('created user is', user)
@@ -129,9 +129,9 @@ module.exports = function (app) {
         } else {
           var accessToken = token.generateAccessToken(user._id);
           if (!accessToken) {
-            res.json({ message: "Registration failed", token: null });
+            res.json({ message: 'Registration failed', token: null });
           } else {
-            res.json({ message: "Registration completed", token: accessToken });
+            res.json({ message: 'Registration completed', token: accessToken });
           }
         }
 

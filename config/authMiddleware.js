@@ -1,44 +1,46 @@
-var passport = require('passport');
+const passport = require('passport');
 
-module.exports = {
-  isAuthorized: function (req, res, next) {
-    return passport.authenticate('jwt', { session: false }, function (err, user, info) {
-      if (err) return next(err);
-      if (!user){
-        res.status(403).json({ message: "Not authenticated" });
-      } else {
+const isAuthorized = (req, res, next) => {
+  return passport.authenticate('jwt', { session: false }, (err, user) => {
+    if (err) return next(err);
+    if (!user) return res.status(403).json({ message: 'Not authenticated' });
+
+    req.user = user;
+    next();
+  })(req, res, next);
+}
+
+const isClient = (req, res, next) => {
+  return passport.authenticate('jwt-client', { session: false }, (err, client) => {
+    if (err) return next(err);
+    if (!client){
+      res.json({ message: 'Not a client' });
+    } else {
+      req.user = client;
+      next();
+    }
+  })(req, res, next);
+}
+
+const isAdmin = (req, res, next) => {
+  return passport.authenticate('jwt', { session: false }, async (err, user) => {
+    if (err) return next(err);
+    user = await user;
+    if (!user){
+      res.json({ message: 'Not authenticated' });
+    } else {
+      if(user.admin === true){
         req.user = user;
         next();
-      }
-    })(req, res, next);
-  },
-
-  isClient: function(req, res, next) {
-    return passport.authenticate('jwt-client', { session: false }, function (err, client) {
-      if (err) return next(err);
-      if (!client){
-        res.json({ message: "Not a client" });
       } else {
-        req.user = client;
-        next();
+        res.json({ isAdmin: false });
       }
-    })(req, res, next);
-  },
+    }
+  })(req, res, next);
+}
 
-  isAdmin: function (req, res, next) {
-    return passport.authenticate('jwt', { session: false }, async function (err, user) {
-      if (err) return next(err);
-      user = await user;
-      if (!user){
-        res.json({ message: "Not authenticated" });
-      } else {
-        if(user.admin === true){
-          req.user = user;
-          next();
-        } else {
-          res.json({ isAdmin: false });
-        }
-      }
-    })(req, res, next);
-  }
+module.exports = {
+  isAuthorized,
+  isClient,
+  isAdmin
 };
